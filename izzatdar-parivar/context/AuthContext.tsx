@@ -15,6 +15,9 @@ import {
   signInWithPopup,
   signOut,
   updateProfile,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+  ConfirmationResult,
 } from "firebase/auth";
 import { auth, googleProvider } from "@/lib/firebase";
 import { createUserProfile, getUserProfile, UserProfile } from "@/lib/firestore";
@@ -28,6 +31,8 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<void>;
   logOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  setupRecaptcha: (containerId: string) => RecaptchaVerifier;
+  sendPhoneOtp: (phone: string, appVerifier: RecaptchaVerifier) => Promise<ConfirmationResult>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -48,7 +53,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
-        const profile = await getUserProfile(firebaseUser.uid);
+        let profile = await getUserProfile(firebaseUser.uid);
+        
+        // Auto-create stub profile for new Phone/Google users caught by listener
+        if (!profile) {
+            await createUserProfile(firebaseUser.uid, {
+              uid: firebaseUser.uid,
+              name: firebaseUser.displayName || firebaseUser.phoneNumber || "User",
+              email: firebaseUser.email || "",
+              photoURL: firebaseUser.photoURL || "",
+              status: "pending",
+              is_premium: false,
+            });
+            profile = await getUserProfile(firebaseUser.uid);
+        }
+
         setUserProfile(profile);
       } else {
         setUserProfile(null);
@@ -90,6 +109,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const setupRecaptcha = (containerId: string) => {
+    return new RecaptchaVerifier(auth, containerId, {
+      size: "invisible",
+    });
+  };
+
+  const sendPhoneOtp = async (phone: string, appVerifier: RecaptchaVerifier) => {
+    return await signInWithPhoneNumber(auth, phone, appVerifier);
+    // User will verify OTP afterwards. 
+    // The onAuthStateChanged listener handles the user state,
+    // but if it's a new user, we need to create a profile.
+    // That needs to happen after they call confirmationResult.confirm(otp)
+    // We'll modify onAuthStateChanged to handle generic new user check.
+  };
+
   const logOut = async () => {
     await signOut(auth);
     setUserProfile(null);
@@ -97,7 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, userProfile, loading, signUp, signIn, signInWithGoogle, logOut, refreshProfile }}
+      value={{ user, userProfile, loading, signUp, signIn, signInWithGoogle, logOut, refreshProfile, setupRecaptcha, sendPhoneOtp }}
     >
       {children}
     </AuthContext.Provider>
