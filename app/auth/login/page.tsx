@@ -72,7 +72,7 @@ export default function LoginPage() {
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || "Failed to send OTP. Try again.");
-      if (appVerifier) appVerifier.render().then((widgetId) => appVerifier.reset(widgetId));
+      if (appVerifier) appVerifier.clear();
     } finally {
       setLoading(false);
     }
