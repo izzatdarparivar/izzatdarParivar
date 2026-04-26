@@ -18,6 +18,7 @@ export interface UserProfile {
   gender: "male" | "female" | "other";
   dob: Timestamp | null;
   age?: number;
+  height?: string;
   location: string;
   religion: string;
   caste: string;
