@@ -24,7 +24,7 @@ export default function ProfileCard({ profile, isPremiumViewer, onUnlockClick }:
   const age = profile.age || calcAge(profile.dob);
 
   return (
-    <div className="bg-[var(--surface-container-lowest)] rounded-2xl overflow-hidden shadow-ambient hover:shadow-lg transition-all duration-300 group">
+    <div className="bg-[var(--surface-container-lowest)] rounded-2xl overflow-hidden shadow-sm border border-[rgba(208,197,175,0.2)] hover:shadow-xl hover:-translate-y-1 hover:border-[var(--outline-variant)] transition-all duration-300 group">
       {/* Image area */}
       <div className="relative h-56 bg-[var(--surface-container)] overflow-hidden">
         {profile.photoURL ? (
@@ -32,11 +32,11 @@ export default function ProfileCard({ profile, isPremiumViewer, onUnlockClick }:
           <img
             src={profile.photoURL}
             alt={profile.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <Avatar className="w-24 h-24">
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[var(--surface-container)] to-[var(--surface-container-high)]">
+            <Avatar className="w-24 h-24 ring-4 ring-white/50 shadow-sm">
               <AvatarFallback className="bg-[var(--primary-container)] text-[var(--on-primary-container)] text-3xl font-serif">
                 {profile.name?.[0]?.toUpperCase() || "?"}
               </AvatarFallback>
@@ -46,47 +46,48 @@ export default function ProfileCard({ profile, isPremiumViewer, onUnlockClick }:
 
         {/* Premium trust badge */}
         {profile.is_premium && (
-          <div className="absolute top-3 right-3 w-8 h-8 gold-gradient rounded-full flex items-center justify-center shadow-md">
-            <Crown className="w-4 h-4 text-white" />
+          <div className="absolute top-3 right-3 w-8 h-8 gold-gradient rounded-full flex items-center justify-center shadow-md border border-white/20">
+            <Crown className="w-4 h-4 text-white drop-shadow-sm" />
           </div>
         )}
 
         {/* Status chip */}
         <div className="absolute bottom-3 left-3">
-          <Badge className="bg-[var(--surface-container-lowest)]/90 text-[var(--primary)] text-xs font-semibold border-0">
+          <Badge className="bg-white/95 backdrop-blur-sm text-[var(--primary)] text-xs font-semibold border border-white/40 shadow-sm">
             {profile.religion || "—"} · {profile.caste || "—"}
           </Badge>
         </div>
       </div>
 
       {/* Content */}
-      <div className="p-5 space-y-3">
+      <div className="p-5 space-y-4">
         <div>
-          <h3 className="font-serif text-lg font-semibold text-[var(--on-surface)] leading-tight">
+          <h3 className="font-serif text-[1.35rem] font-bold text-[var(--on-surface)] leading-tight mb-1 group-hover:text-[var(--primary)] transition-colors">
             {profile.name}
           </h3>
-          <p className="text-sm text-[var(--on-surface-variant)]">
+          <p className="text-sm font-medium text-[var(--on-surface-variant)]/80">
             {age > 0 ? `${age} yrs` : "Age N/A"}
+            {profile.height ? ` · ${profile.height}` : ""}
             {profile.motherTongue ? ` · ${profile.motherTongue}` : ""}
           </p>
         </div>
 
-        <div className="space-y-1.5">
+        <div className="space-y-2 pt-3 border-t border-[rgba(208,197,175,0.2)]">
           {profile.location && (
-            <div className="flex items-center gap-2 text-sm text-[var(--on-surface-variant)]">
-              <MapPin className="w-3.5 h-3.5 flex-shrink-0 text-[var(--primary)]" />
+            <div className="flex items-center gap-2.5 text-sm text-[var(--on-surface-variant)]">
+              <div className="w-5 flex justify-center"><MapPin className="w-4 h-4 text-[var(--primary)]/70" /></div>
               <span className="truncate">{profile.location}</span>
             </div>
           )}
           {profile.education && (
-            <div className="flex items-center gap-2 text-sm text-[var(--on-surface-variant)]">
-              <BookOpen className="w-3.5 h-3.5 flex-shrink-0 text-[var(--primary)]" />
+            <div className="flex items-center gap-2.5 text-sm text-[var(--on-surface-variant)]">
+              <div className="w-5 flex justify-center"><BookOpen className="w-4 h-4 text-[var(--primary)]/70" /></div>
               <span className="truncate">{profile.education}</span>
             </div>
           )}
           {profile.occupation && (
-            <div className="flex items-center gap-2 text-sm text-[var(--on-surface-variant)]">
-              <Briefcase className="w-3.5 h-3.5 flex-shrink-0 text-[var(--primary)]" />
+            <div className="flex items-center gap-2.5 text-sm text-[var(--on-surface-variant)]">
+              <div className="w-5 flex justify-center"><Briefcase className="w-4 h-4 text-[var(--primary)]/70" /></div>
               <span className="truncate">{profile.occupation}</span>
             </div>
           )}
@@ -112,7 +113,7 @@ export default function ProfileCard({ profile, isPremiumViewer, onUnlockClick }:
             <div className="space-y-1">
               <div className="flex items-center gap-2 text-sm select-none">
                 <EyeOff className="w-3.5 h-3.5 text-[var(--outline)]" />
-                <span className="blur-contact text-[var(--on-surface)]">+91 98765 43210</span>
+                <span className="blur-contact text-[var(--on-surface)]">+91 70617 85692</span>
               </div>
               <div className="flex items-center gap-2 text-sm select-none">
                 <EyeOff className="w-3.5 h-3.5 text-[var(--outline)]" />

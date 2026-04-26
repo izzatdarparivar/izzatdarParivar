@@ -126,7 +126,7 @@ export default function CreateProfilePage() {
       <Input
         id={id} type={type} value={value} placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className="rounded-xl border-[var(--outline-variant)]/40 bg-[var(--surface-container-low)] focus:border-[var(--primary)]"
+        className="rounded-xl border-[var(--outline-variant)]/40 bg-[var(--surface-container-low)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition-all"
       />
     </div>
   );
@@ -138,7 +138,7 @@ export default function CreateProfilePage() {
       <Label htmlFor={id} className="text-sm font-medium text-[var(--on-surface-variant)]">{label}</Label>
       <select
         id={id} value={value} onChange={(e) => onChange(e.target.value)}
-        className="w-full h-10 rounded-xl border border-[var(--outline-variant)]/40 bg-[var(--surface-container-low)] px-3 text-sm text-[var(--on-surface)] focus:outline-none focus:border-[var(--primary)]"
+        className="w-full h-10 rounded-xl border border-[var(--outline-variant)]/40 bg-[var(--surface-container-low)] px-3 text-sm text-[var(--on-surface)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition-all"
       >
         <option value="">Select...</option>
         {options.map((o) => <option key={o} value={o.toLowerCase()}>{o}</option>)}
@@ -150,11 +150,12 @@ export default function CreateProfilePage() {
     <div className="min-h-screen bg-[var(--background)]">
       <Navbar />
       <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="mb-8">
-          <h1 className="font-serif text-3xl font-bold text-[var(--on-surface)]">
+        <div className="mb-8 bg-gradient-to-r from-[var(--primary-container)]/40 to-[var(--secondary-container)]/20 rounded-3xl p-8 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-[var(--primary-fixed)]/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none" />
+          <h1 className="font-serif text-3xl font-bold text-[var(--on-surface)] relative">
             Your Profile
           </h1>
-          <p className="text-[var(--on-surface-variant)] mt-1">
+          <p className="text-[var(--on-surface-variant)] mt-1 relative">
             Complete your profile to get the best matches
           </p>
         </div>
@@ -177,7 +178,7 @@ export default function CreateProfilePage() {
           </div>
 
           <Tabs defaultValue="basic" className="w-full">
-            <TabsList className="w-full grid grid-cols-3 bg-[var(--surface-container)] rounded-xl mb-6 h-auto p-1">
+            <TabsList className="w-full grid grid-cols-3 bg-[var(--surface-container)]/60 rounded-2xl mb-8 h-auto p-1.5 border border-[var(--outline-variant)]/20">
               {[
                 { value: "basic", label: "Basic Info", icon: User },
                 { value: "professional", label: "Professional", icon: Briefcase },
@@ -186,9 +187,9 @@ export default function CreateProfilePage() {
                 <TabsTrigger
                   key={value}
                   value={value}
-                  className="flex items-center gap-1.5 rounded-lg py-2 text-xs sm:text-sm data-[state=active]:bg-[var(--surface-container-lowest)] data-[state=active]:text-[var(--primary)] data-[state=active]:shadow-sm"
+                  className="flex items-center gap-2 rounded-xl py-3 text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-[var(--primary)] data-[state=active]:shadow-md transition-all duration-200"
                 >
-                  <Icon className="w-3.5 h-3.5" />
+                  <Icon className="w-4 h-4" />
                   {label}
                 </TabsTrigger>
               ))}
@@ -236,7 +237,7 @@ export default function CreateProfilePage() {
                   onChange={(e) => set("bio", e.target.value)}
                   placeholder="Tell potential matches a little about yourself..."
                   rows={4}
-                  className="w-full rounded-xl border border-[var(--outline-variant)]/40 bg-[var(--surface-container-low)] px-3 py-2 text-sm text-[var(--on-surface)] placeholder:text-[var(--outline)] focus:outline-none focus:border-[var(--primary)] resize-none"
+                  className="w-full rounded-xl border border-[var(--outline-variant)]/40 bg-[var(--surface-container-low)] px-3 py-2.5 text-sm text-[var(--on-surface)] placeholder:text-[var(--outline)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition-all resize-none"
                 />
               </div>
             </TabsContent>

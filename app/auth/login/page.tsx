@@ -55,7 +55,7 @@ export default function LoginPage() {
 
   const handleSendOtp = async () => {
     if (!phone || phone.length < 10) {
-      toast.error("Please enter a valid phone number (e.g., +919876543210)");
+      toast.error("Please enter a valid phone number (e.g., +917061785692)");
       return;
     }
     if (!appVerifier) {
@@ -161,7 +161,7 @@ export default function LoginPage() {
                     id="login-email"
                     type="email"
                     placeholder="your@email.com"
-                    className="pl-10 rounded-full border-[var(--outline-variant)]/50 bg-[var(--surface-container-low)]"
+                    className="pl-10 rounded-full border-[var(--outline-variant)]/50 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition-all bg-[var(--surface-container-low)]"
                     value={form.email}
                     onChange={(e) => setForm({ ...form, email: e.target.value })}
                   />
@@ -183,7 +183,7 @@ export default function LoginPage() {
                     id="login-password"
                     type="password"
                     placeholder="Your password"
-                    className="pl-10 rounded-full border-[var(--outline-variant)]/50 bg-[var(--surface-container-low)]"
+                    className="pl-10 rounded-full border-[var(--outline-variant)]/50 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition-all bg-[var(--surface-container-low)]"
                     value={form.password}
                     onChange={(e) => setForm({ ...form, password: e.target.value })}
                   />
@@ -215,8 +215,8 @@ export default function LoginPage() {
                       <Input
                         id="login-phone"
                         type="tel"
-                        placeholder="+91 9876543210"
-                        className="pl-10 rounded-full border-[var(--outline-variant)]/50 bg-[var(--surface-container-low)]"
+                        placeholder="+91 70617 85692"
+                        className="pl-10 rounded-full border-[var(--outline-variant)]/50 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition-all bg-[var(--surface-container-low)]"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                       />
@@ -243,7 +243,7 @@ export default function LoginPage() {
                         type="text"
                         maxLength={6}
                         placeholder="123456"
-                        className="pl-10 rounded-full border-[var(--outline-variant)]/50 bg-[var(--surface-container-low)] text-center tracking-[0.5em] font-mono text-lg"
+                        className="pl-10 rounded-full border-[var(--outline-variant)]/50 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition-all bg-[var(--surface-container-low)] text-center tracking-[0.5em] font-mono text-lg"
                         value={otp}
                         onChange={(e) => setOtp(e.target.value)}
                       />

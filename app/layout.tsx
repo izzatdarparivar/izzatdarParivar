@@ -1,7 +1,14 @@
 import type { Metadata } from "next";
+import { Montserrat } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/context/AuthContext";
+
+const montserrat = Montserrat({ 
+  subsets: ["latin"], 
+  variable: "--font-sans",
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: "Izzatdar Parivar — Premium Matrimonial Service",
@@ -21,16 +28,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,400;0,600;0,700;1,400&family=Manrope:wght@300;400;500;600;700&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-      <body>
+    <html lang="en" className={`${montserrat.variable}`}>
+      <body className="antialiased">
         <AuthProvider>
           {children}
           <Toaster richColors position="top-right" />

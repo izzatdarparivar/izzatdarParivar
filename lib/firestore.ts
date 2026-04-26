@@ -26,7 +26,9 @@ export interface UserProfile {
   occupation: string;
   annualIncome: string;
   bio: string;
+  tagline?: string;
   photoURL: string;
+  photos?: string[];
   phone: string;
   email: string;
   preferences: {

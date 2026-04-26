@@ -65,11 +65,12 @@ export default function DashboardPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="font-serif text-3xl font-bold text-[var(--on-surface)]">
+        <div className="mb-8 bg-gradient-to-r from-[var(--primary-container)]/40 to-[var(--secondary-container)]/20 rounded-3xl p-8 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--primary-fixed)]/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none" />
+          <h1 className="font-serif text-3xl font-bold text-[var(--on-surface)] relative">
             Welcome back, {user.displayName?.split(" ")[0] || "there"} 👋
           </h1>
-          <p className="text-[var(--on-surface-variant)] mt-1">
+          <p className="text-[var(--on-surface-variant)] mt-1 relative">
             Manage your profile and discover matches
           </p>
         </div>
@@ -172,7 +173,7 @@ export default function DashboardPage() {
                 { icon: Heart, label: "Interests Received", value: "—" },
                 { icon: Users, label: "Matches", value: "—" },
               ].map((stat) => (
-                <div key={stat.label} className="bg-[var(--surface-container-lowest)] rounded-2xl p-5 shadow-ambient text-center">
+                <div key={stat.label} className="bg-[var(--surface-container-lowest)] rounded-2xl p-5 shadow-[0_8px_30px_rgba(58,45,39,0.08)] text-center hover:shadow-[0_12px_40px_rgba(58,45,39,0.12)] transition-shadow duration-300 border border-[var(--outline-variant)]/10">
                   <div className="w-10 h-10 gold-gradient rounded-xl flex items-center justify-center mx-auto mb-3">
                     <stat.icon className="w-5 h-5 text-white" />
                   </div>
@@ -220,7 +221,7 @@ export default function DashboardPage() {
                   <Link
                     key={action.href}
                     href={action.href}
-                    className="flex items-center gap-3 p-4 rounded-xl bg-[var(--surface-container-low)] hover:bg-[var(--surface-container)] transition-colors group"
+                    className="flex items-center gap-3 p-4 rounded-xl bg-[var(--surface-container-low)] hover:bg-[var(--surface-container)] hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 group"
                   >
                     <div className="w-10 h-10 gold-gradient rounded-xl flex items-center justify-center flex-shrink-0">
                       <action.icon className="w-5 h-5 text-white" />
