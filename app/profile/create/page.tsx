@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { User, Heart, Briefcase, Camera, Users, Sparkles, X, Plus } from "lucide-react";
 import { uploadImageAction } from "@/app/actions/cloudinary";
 import Image from "next/image";
+import { Timestamp } from "firebase/firestore";
 
 interface FormData {
   firstName: string;
