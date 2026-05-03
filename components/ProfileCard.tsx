@@ -24,7 +24,7 @@ export default function ProfileCard({ profile, isPremiumViewer, onUnlockClick }:
   const age = profile.age || calcAge(profile.dob);
 
   return (
-    <div className="bg-[var(--surface-container-lowest)] rounded-2xl overflow-hidden shadow-sm border border-[rgba(208,197,175,0.2)] hover:shadow-xl hover:-translate-y-1 hover:border-[var(--outline-variant)] transition-all duration-300 group">
+    <div className="bg-[var(--card)] rounded-2xl overflow-hidden shadow-sm border border-[var(--outline-variant)] hover:shadow-xl hover:-translate-y-1 hover:border-[var(--outline-variant)] transition-all duration-300 group">
       {/* Image area */}
       <div className="relative h-56 bg-[var(--surface-container)] overflow-hidden">
         {profile.photoURL ? (
@@ -46,7 +46,7 @@ export default function ProfileCard({ profile, isPremiumViewer, onUnlockClick }:
 
         {/* Premium trust badge */}
         {profile.is_premium && (
-          <div className="absolute top-3 right-3 w-8 h-8 gold-gradient rounded-full flex items-center justify-center shadow-md border border-white/20">
+          <div className="absolute top-3 right-3 w-8 h-8 bg-gradient-to-br from-[var(--primary)] to-[var(--tertiary)] rounded-full flex items-center justify-center shadow-md border border-white/20">
             <Crown className="w-4 h-4 text-white drop-shadow-sm" />
           </div>
         )}
@@ -65,7 +65,7 @@ export default function ProfileCard({ profile, isPremiumViewer, onUnlockClick }:
           <h3 className="font-serif text-[1.35rem] font-bold text-[var(--on-surface)] leading-tight mb-1 group-hover:text-[var(--primary)] transition-colors">
             {profile.name}
           </h3>
-          <p className="text-sm font-medium text-[var(--on-surface-variant)]/80">
+          <p className="text-sm font-medium text-[var(--on-surface-variant)]">
             {age > 0 ? `${age} yrs` : "Age N/A"}
             {profile.height ? ` · ${profile.height}` : ""}
             {profile.motherTongue ? ` · ${profile.motherTongue}` : ""}
@@ -95,8 +95,8 @@ export default function ProfileCard({ profile, isPremiumViewer, onUnlockClick }:
 
         {/* Contact details — locked for non-premium */}
         <div className="pt-2 border-t border-[rgba(208,197,175,0.2)] space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--on-surface-variant)] mb-2">
-            Contact Details
+          <p className="text-xs tracking-wider text-[var(--on-surface-variant)] mb-2" style={{ fontVariant: 'small-caps', fontWeight: 400 }}>
+            Contact details
           </p>
           {isPremiumViewer ? (
             <div className="space-y-1">
@@ -122,7 +122,7 @@ export default function ProfileCard({ profile, isPremiumViewer, onUnlockClick }:
               <Button
                 onClick={onUnlockClick}
                 size="sm"
-                className="mt-2 w-full gold-gradient text-white rounded-full text-xs font-semibold"
+                className="mt-2 w-full bg-[var(--secondary)] text-white rounded-full text-xs font-semibold hover:bg-[var(--secondary-container)]"
               >
                 <Crown className="w-3 h-3 mr-1" />
                 Unlock with Premium
@@ -133,7 +133,7 @@ export default function ProfileCard({ profile, isPremiumViewer, onUnlockClick }:
 
         <Link
           href={`/profile/${profile.uid}`}
-          className="block mt-3 text-center text-sm font-semibold text-[var(--primary)] hover:text-[var(--primary-container)] transition-colors"
+          className="block mt-3 text-center text-sm font-semibold text-[var(--primary)] hover:text-[var(--primary)] transition-colors"
         >
           View Full Profile →
         </Link>

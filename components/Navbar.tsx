@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Heart, Menu, X, Crown, MessageCircle, Bell } from "lucide-react";
+import { Heart, Menu, X, Crown, MessageCircle, Bell, ArrowUp } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
@@ -26,12 +26,26 @@ export default function Navbar() {
   const pathname = usePathname();
   const [chatCount, setChatCount] = useState(0);
   const [notifCount, setNotifCount] = useState(0);
+  const [scrollPercent, setScrollPercent] = useState(0);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  // Scroll progress
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.scrollY;
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      setScrollPercent(docHeight > 0 ? (scrollTop / docHeight) * 100 : 0);
+      setShowScrollTop(scrollTop > 400);
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const isActive = (path: string) => pathname === path;
   const navLinkClass = (path: string) => `text-sm font-semibold transition-all duration-200 ${
     isActive(path) 
-      ? "text-[var(--primary)] scale-105" 
-      : "text-[var(--on-surface-variant)] hover:text-[var(--primary)]"
+      ? "text-[var(--primary)] scale-105 border-b-2 border-[var(--primary)]" 
+      : "text-[var(--on-surface-variant)] hover:text-[var(--primary)] hover:border-b-2 hover:border-[var(--primary)]"
   }`;
 
   // Subscribe to chat session count
@@ -62,8 +76,21 @@ export default function Navbar() {
     router.push("/");
   };
 
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   return (
-    <nav className="glass sticky top-0 z-50 border-b border-[rgba(208,197,175,0.2)]">
+    <>
+      {/* Scroll progress bar */}
+      <div className="fixed top-0 left-0 w-full h-[3px] z-[100] bg-transparent pointer-events-none">
+        <div
+          className="h-full bg-[var(--primary)] transition-all duration-150 ease-out"
+          style={{ width: scrollPercent + '%' }}
+        />
+      </div>
+
+      <nav className="glass sticky top-0 z-50 border-b border-[var(--outline-variant)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
@@ -78,15 +105,27 @@ export default function Navbar() {
                 priority
               />
             </div>
-            <span className="font-serif text-lg font-bold text-[var(--primary)] tracking-tight">
+            <span className="font-serif text-lg font-bold text-[var(--on-surface)] tracking-tight">
               Izzatdar Parivar
             </span>
           </Link>
 
           {/* Desktop nav */}
           <div className="hidden md:flex items-center gap-6">
-            <Link href="/matches" className={navLinkClass("/matches")}>
-              Find Matches
+            <Link href="/about" className={navLinkClass("/about")}>
+              About
+            </Link>
+            <Link href="/how-it-works" className={navLinkClass("/how-it-works")}>
+              How It Works
+            </Link>
+            <Link href="/success-stories" className={navLinkClass("/success-stories")}>
+              Success Stories
+            </Link>
+            <Link href="/pricing" className={navLinkClass("/pricing")}>
+              Pricing
+            </Link>
+            <Link href="/contact" className={navLinkClass("/contact")}>
+              Contact
             </Link>
 
             {user ? (
@@ -159,10 +198,10 @@ export default function Navbar() {
               </>
             ) : (
               <div className="flex items-center gap-3">
-                <Button variant="ghost" asChild className="text-[var(--primary)]">
+                <Button variant="outline" asChild className="border-[var(--primary)] text-[var(--primary)] hover:bg-[var(--primary)] hover:text-white">
                   <Link href="/auth/login">Sign In</Link>
                 </Button>
-                <Button asChild className="gold-gradient text-white rounded-full px-5">
+                <Button asChild className="bg-[var(--primary)] text-white rounded-full px-5 hover:bg-[var(--primary-fixed)]">
                   <Link href="/auth/signup">Get Started</Link>
                 </Button>
               </div>
@@ -211,6 +250,11 @@ export default function Navbar() {
       {/* Mobile menu */}
       {mobileOpen && (
         <div className="md:hidden border-t border-[rgba(208,197,175,0.2)] bg-[var(--surface-container-lowest)] px-4 py-4 space-y-3">
+          <Link href="/about" className={`block text-sm py-2 px-3 rounded-lg ${isActive("/about") ? "bg-[var(--primary-container)]/50 text-[var(--primary)] font-bold" : "font-medium text-[var(--on-surface-variant)]"}`} onClick={() => setMobileOpen(false)}>About</Link>
+          <Link href="/how-it-works" className={`block text-sm py-2 px-3 rounded-lg ${isActive("/how-it-works") ? "bg-[var(--primary-container)]/50 text-[var(--primary)] font-bold" : "font-medium text-[var(--on-surface-variant)]"}`} onClick={() => setMobileOpen(false)}>How It Works</Link>
+          <Link href="/success-stories" className={`block text-sm py-2 px-3 rounded-lg ${isActive("/success-stories") ? "bg-[var(--primary-container)]/50 text-[var(--primary)] font-bold" : "font-medium text-[var(--on-surface-variant)]"}`} onClick={() => setMobileOpen(false)}>Success Stories</Link>
+          <Link href="/pricing" className={`block text-sm py-2 px-3 rounded-lg ${isActive("/pricing") ? "bg-[var(--primary-container)]/50 text-[var(--primary)] font-bold" : "font-medium text-[var(--on-surface-variant)]"}`} onClick={() => setMobileOpen(false)}>Pricing</Link>
+          <Link href="/contact" className={`block text-sm py-2 px-3 rounded-lg ${isActive("/contact") ? "bg-[var(--primary-container)]/50 text-[var(--primary)] font-bold" : "font-medium text-[var(--on-surface-variant)]"}`} onClick={() => setMobileOpen(false)}>Contact</Link>
           <Link href="/matches" className={`block text-sm py-2 px-3 rounded-lg ${isActive("/matches") ? "bg-[var(--primary-container)]/50 text-[var(--primary)] font-bold" : "font-medium text-[var(--on-surface-variant)]"}`} onClick={() => setMobileOpen(false)}>Find Matches</Link>
           {user ? (
             <>
@@ -237,11 +281,23 @@ export default function Navbar() {
           ) : (
             <div className="flex flex-col gap-2 pt-2">
               <Button variant="outline" asChild><Link href="/auth/login">Sign In</Link></Button>
-              <Button asChild className="gold-gradient text-white"><Link href="/auth/signup">Get Started</Link></Button>
+              <Button asChild className="bg-[var(--primary)] text-white rounded-full px-5 hover:bg-[var(--primary-fixed)]"><Link href="/auth/signup">Get Started</Link></Button>
             </div>
           )}
         </div>
       )}
-    </nav>
+      </nav>
+
+      {/* Scroll-to-top button */}
+      {showScrollTop && (
+        <button
+          onClick={scrollToTop}
+          aria-label="Scroll to top"
+          className="fixed bottom-6 right-6 z-50 w-11 h-11 bg-[var(--primary)] text-white rounded-full shadow-lg hover:bg-[var(--primary-fixed)] transition-all duration-300 flex items-center justify-center animate-bounce"
+        >
+          <ArrowUp className="w-5 h-5" />
+        </button>
+      )}
+    </>
   );
 }

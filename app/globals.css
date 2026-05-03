@@ -7,39 +7,39 @@
 
 :root {
   /* Heritage Curator Palette */
-  --background: #fff9f0;
-  --foreground: #3A2D27;
+  --background: #F7F3EE;
+  --foreground: #2B2B2B;
 
-  --primary: #f97316;
-  --primary-container: #ffedd5;
-  --primary-fixed: #fed7aa;
+  --primary: #C96A4A;
+  --primary-container: #FBF7F2;
+  --primary-fixed: #E8A07C;
   --on-primary: #ffffff;
-  --on-primary-container: #7c2d12;
+  --on-primary-container: #2B2B2B;
 
-  --secondary: #800000;
-  --secondary-container: #fecdd3;
+  --secondary: #2F4F3E;
+  --secondary-container: #F3EFEA;
   --on-secondary: #ffffff;
 
-  --tertiary: #a16207;
-  --tertiary-container: #fef08a;
-  --on-tertiary: #ffffff;
+  --tertiary: #D4A857;
+  --tertiary-container: #F7F3EE;
+  --on-tertiary: #2B2B2B;
 
-  --surface: #fff9f0;
-  --surface-bright: #fff9f0;
-  --surface-container: #fceded;
-  --surface-container-high: #f9e1e1;
-  --surface-container-highest: #f4d4d4;
-  --surface-container-low: #fdf5f5;
-  --surface-container-lowest: #ffffff;
-  --surface-dim: #e6c5c5;
-  --surface-variant: #f4d4d4;
-  --surface-tint: #f97316;
+  --surface: #F7F3EE;
+  --surface-bright: #F7F3EE;
+  --surface-container: #FBF7F2;
+  --surface-container-high: #F3EFEA;
+  --surface-container-highest: #E5DED6;
+  --surface-container-low: #F7F3EE;
+  --surface-container-lowest: #FFFFFF;
+  --surface-dim: #CFC7BE;
+  --surface-variant: #E5DED6;
+  --surface-tint: #C96A4A;
 
-  --on-surface: #3A2D27;
-  --on-surface-variant: #5C4E42;
+  --on-surface: #2B2B2B;
+  --on-surface-variant: #6B6B6B;
 
-  --outline: #8A7B6B;
-  --outline-variant: #D4CBBA;
+  --outline: #E5DED6;
+  --outline-variant: #E5DED6;
 
   --error: #ba1a1a;
   --on-error: #ffffff;
@@ -47,13 +47,13 @@
   --radius: 0.5rem;
 
   /* Card Tokens */
-  --card: #ffffff;
-  --card-foreground: #3A2D27;
-  --popover: #ffffff;
-  --popover-foreground: #3A2D27;
-  --border: rgba(249, 115, 22, 0.3);
-  --input: rgba(249, 115, 22, 0.4);
-  --ring: #f97316;
+  --card: #FFFFFF;
+  --card-foreground: #2B2B2B;
+  --popover: #FFFFFF;
+  --popover-foreground: #2B2B2B;
+  --border: rgba(229, 222, 214, 0.3);
+  --input: rgba(229, 222, 214, 0.4);
+  --ring: #C96A4A;
   --muted: #fdf5f5;
   --muted-foreground: #5C4E42;
   --accent: #fed7aa;
@@ -84,7 +84,7 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-serif: var(--font-sans), ui-serif, system-ui, serif;
+  --font-serif: var(--font-serif), ui-serif, system-ui, serif;
 }
 
 * {
