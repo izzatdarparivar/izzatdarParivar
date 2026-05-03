@@ -42,6 +42,22 @@ export interface UserProfile {
   is_premium: boolean;
   createdAt: Timestamp | null;
   updatedAt: Timestamp | null;
+
+  // Structured name (new — backward-compatible, all optional)
+  firstName?: string;
+  middleName?: string;
+  lastName?: string;
+
+  // Enhanced demographics
+  maritalStatus?: string;  // "Never Married" | "Divorced" | "Widowed" | "Awaiting Divorce"
+  familyType?: string;     // "Nuclear" | "Joint" | "Other"
+  diet?: string;           // "Vegetarian" | "Non-Vegetarian" | "Vegan" | "Eggetarian"
+  lifestyle?: string;      // "Traditional" | "Moderate" | "Liberal"
+  aboutFamily?: string;    // Free-text family background
+
+  // Interests & hobbies
+  hobbies?: string[];      // Array of hobby tags
+  gotra?: string;          // Family lineage tag
 }
 
 /** Create or overwrite a user document */

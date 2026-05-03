@@ -173,7 +173,7 @@ export default function SignupPage() {
                     placeholder="Your full name"
                     className="pl-10 rounded-full border-[var(--outline-variant)]/50 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition-all bg-[var(--surface-container-low)]"
                     value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
                   />
                 </div>
               </div>
@@ -190,7 +190,7 @@ export default function SignupPage() {
                     placeholder="your@email.com"
                     className="pl-10 rounded-full border-[var(--outline-variant)]/50 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition-all bg-[var(--surface-container-low)]"
                     value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    onChange={(e) => setForm(prev => ({ ...prev, email: e.target.value }))}
                   />
                 </div>
               </div>
@@ -207,7 +207,7 @@ export default function SignupPage() {
                     placeholder="Min. 6 characters"
                     className="pl-10 rounded-full border-[var(--outline-variant)]/50 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition-all bg-[var(--surface-container-low)]"
                     value={form.password}
-                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    onChange={(e) => setForm(prev => ({ ...prev, password: e.target.value }))}
                   />
                 </div>
               </div>

@@ -163,7 +163,7 @@ export default function LoginPage() {
                     placeholder="your@email.com"
                     className="pl-10 rounded-full border-[var(--outline-variant)]/50 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition-all bg-[var(--surface-container-low)]"
                     value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    onChange={(e) => setForm(prev => ({ ...prev, email: e.target.value }))}
                   />
                 </div>
               </div>
@@ -185,7 +185,7 @@ export default function LoginPage() {
                     placeholder="Your password"
                     className="pl-10 rounded-full border-[var(--outline-variant)]/50 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition-all bg-[var(--surface-container-low)]"
                     value={form.password}
-                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    onChange={(e) => setForm(prev => ({ ...prev, password: e.target.value }))}
                   />
                 </div>
               </div>

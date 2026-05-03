@@ -136,3 +136,30 @@ export function subscribeToMessages(sessionId: string, callback: (messages: Chat
     callback(messages);
   });
 }
+
+/** Listen to all chat sessions for a user (Real-time) */
+export function subscribeToChatSessions(uid: string, callback: (sessions: (ChatSession & { id: string })[]) => void) {
+  const q = query(
+    collection(db, "chat_sessions"),
+    where("participants", "array-contains", uid)
+  );
+
+  return onSnapshot(q, (snap) => {
+    const sessions = snap.docs.map(d => ({
+      id: d.id,
+      ...d.data()
+    })) as (ChatSession & { id: string })[];
+    // Sort by updatedAt descending (most recent first)
+    sessions.sort((a, b) => {
+      const aTime = a.updatedAt?.toMillis?.() || 0;
+      const bTime = b.updatedAt?.toMillis?.() || 0;
+      return bTime - aTime;
+    });
+    callback(sessions);
+  });
+}
+
+/** Get the other participant's UID from a session */
+export function getOtherParticipantId(session: ChatSession, currentUid: string): string {
+  return session.participants.find(p => p !== currentUid) || "";
+}

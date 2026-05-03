@@ -1,33 +1,47 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
 import Navbar from "@/components/Navbar";
-import { getApprovedProfiles, UserProfile } from "@/lib/firestore";
+import { getApprovedProfiles, UserProfile, getUserProfile } from "@/lib/firestore";
 import { logInteraction } from "@/lib/analytics";
-import { getOrCreateChatSession, ChatMessage, ChatSession, subscribeToMessages, sendMessage, updateChatConsent } from "@/lib/chat";
+import { getOrCreateChatSession, sendMessage, subscribeToMessages, ChatMessage, ChatSession } from "@/lib/chat";
+import { createNotification } from "@/lib/notifications";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Crown, Heart, X, MapPin, Briefcase, GraduationCap,
-  MessageCircle, Send, ArrowLeft, ChevronLeft, ChevronRight,
-  Info
+  MessageCircle, Send, Info, ChevronLeft, ChevronRight,
+  Filter, Star, Sparkles, ArrowLeft
 } from "lucide-react";
 import PremiumModal from "@/components/PremiumModal";
 import Link from "next/link";
 import Image from "next/image";
-import { motion, AnimatePresence, useAnimation, PanInfo } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+
+interface FilterState {
+  minAge: number;
+  maxAge: number;
+  religion: string;
+  location: string;
+}
 
 export default function MatchesPage() {
   const { user, userProfile } = useAuth();
-  const [profiles, setProfiles] = useState<UserProfile[]>([]);
+  const [allProfiles, setAllProfiles] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
-  
   const [chatOpen, setChatOpen] = useState(false);
   const [chatProfile, setChatProfile] = useState<UserProfile | null>(null);
+  
+  const [filters, setFilters] = useState<FilterState>({
+    minAge: 18,
+    maxAge: 50,
+    religion: "Any",
+    location: "Any",
+  });
 
   const viewStartTime = useRef<number>(Date.now());
 
@@ -42,7 +56,7 @@ export default function MatchesPage() {
             candidates = candidates.filter((p) => p.gender !== userProfile.gender);
           }
         }
-        setProfiles(candidates);
+        setAllProfiles(candidates);
         viewStartTime.current = Date.now();
       } catch (e) {
         console.error(e);
@@ -55,150 +69,213 @@ export default function MatchesPage() {
     }
   }, [user, userProfile]);
 
+  const profiles = useMemo(() => {
+    return allProfiles.filter((p) => {
+      const age = p.age || 25;
+      if (age < filters.minAge || age > filters.maxAge) return false;
+      if (filters.religion !== "Any" && p.religion?.toLowerCase() !== filters.religion.toLowerCase()) return false;
+      if (filters.location !== "Any" && !p.location?.toLowerCase().includes(filters.location.toLowerCase())) return false;
+      return true;
+    });
+  }, [allProfiles, filters]);
+
+  useEffect(() => {
+    setCurrentIndex(0);
+    viewStartTime.current = Date.now();
+  }, [filters]);
+
   const handleSwipe = useCallback(async (direction: "left" | "right", profile: UserProfile) => {
     if (!user) {
-      toast.error("Please sign in to interact with profiles");
+      toast.error("Please sign in to interact");
       return;
     }
-
     const timeSpent = Date.now() - viewStartTime.current;
-    
-    // Log interaction
-    logInteraction(
-      user.uid, 
-      profile.uid, 
-      direction === "right" ? "swipe_right" : "swipe_left", 
-      timeSpent
-    );
-
-    if (direction === "right") {
-      toast.success(`Interest sent to ${profile.name}!`);
-    }
-
-    // Move to next
+    logInteraction(user.uid, profile.uid, direction === "right" ? "swipe_right" : "swipe_left", timeSpent);
+    if (direction === "right") toast.success(`Interest sent to ${profile.name}!`);
     setCurrentIndex((prev) => prev + 1);
     viewStartTime.current = Date.now();
   }, [user]);
 
-  // Keyboard support for swipe
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (chatOpen || loading || currentIndex >= profiles.length) return;
-      
-      const current = profiles[currentIndex];
-      if (e.key === "ArrowLeft") {
-        handleSwipe("left", current);
-      } else if (e.key === "ArrowRight") {
-        handleSwipe("right", current);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentIndex, profiles, loading, chatOpen, handleSwipe]);
-
-  const handleOpenChat = async (profile: UserProfile) => {
-    if (!user) {
-      toast.error("Please sign in to chat");
-      return;
-    }
-    
-    const timeSpent = Date.now() - viewStartTime.current;
-    logInteraction(user.uid, profile.uid, "chat_opened", timeSpent);
-
-    setChatProfile(profile);
-    setChatOpen(true);
-  };
-
   const currentProfile = profiles[currentIndex];
 
+  if (loading || !user) {
+    return (
+      <div className="min-h-screen bg-[var(--background)] flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="w-10 h-10 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-[var(--background)] flex flex-col overflow-hidden">
+    <div className="h-screen bg-[var(--background)] flex flex-col overflow-hidden">
       <Navbar />
 
-      {!user && (
-        <div className="bg-[var(--surface-container)] border-b border-[#e8e0d6] shrink-0">
-          <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between flex-wrap gap-3">
-            <p className="text-sm text-[var(--on-surface-variant)]">
-              Sign in to send interest and start chatting.
-            </p>
-            <Button asChild size="sm" className="gold-gradient text-white rounded-full text-xs">
-              <Link href="/auth/signup">Sign Up Free</Link>
-            </Button>
+      <main className="flex-1 flex overflow-hidden w-full max-w-[1800px] mx-auto">
+        {/* Left Sidebar */}
+        <aside className="hidden lg:flex w-[300px] flex-shrink-0 border-r border-[var(--outline-variant)]/20 bg-white/50 backdrop-blur-sm p-6 flex-col">
+          <div className="mb-8">
+            <h2 className="font-serif text-xl font-bold text-[var(--on-surface)] flex items-center gap-2 mb-1">
+              <Filter className="w-4 h-4 text-[var(--primary)]" /> Filters
+            </h2>
+            <p className="text-xs text-[var(--on-surface-variant)]">Refine your discovery</p>
           </div>
-        </div>
-      )}
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6 overflow-hidden relative">
-        {loading ? (
-          <div className="w-full max-w-sm aspect-[3/4] bg-white rounded-3xl animate-pulse shadow-xl border border-[#ede6dc]" />
-        ) : profiles.length === 0 || currentIndex >= profiles.length ? (
-          <div className="text-center py-16 max-w-sm mx-auto">
-            <div className="w-20 h-20 bg-[var(--primary-container)]/50 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Heart className="w-10 h-10 text-[var(--primary)]" />
+          <div className="space-y-6 flex-1">
+            <div className="space-y-2">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--outline)]">Age Range</p>
+              <div className="flex items-center gap-2">
+                <input 
+                  type="number" 
+                  value={filters.minAge} 
+                  onChange={(e) => setFilters(prev => ({...prev, minAge: parseInt(e.target.value) || 18}))}
+                  className="w-full h-9 rounded-xl border border-[var(--outline-variant)]/20 bg-white px-3 text-xs font-bold"
+                />
+                <span className="text-[var(--outline)]">-</span>
+                <input 
+                  type="number" 
+                  value={filters.maxAge} 
+                  onChange={(e) => setFilters(prev => ({...prev, maxAge: parseInt(e.target.value) || 50}))}
+                  className="w-full h-9 rounded-xl border border-[var(--outline-variant)]/20 bg-white px-3 text-xs font-bold"
+                />
+              </div>
             </div>
-            <p className="font-serif text-2xl text-[var(--on-surface)] mb-2">You&apos;ve seen all profiles!</p>
-            <p className="text-[var(--on-surface-variant)]">
-              Check back later for new verified profiles matching your preferences.
-            </p>
-            <Button
-              className="mt-6 gold-gradient text-white rounded-full px-8 shadow-ambient"
-              onClick={() => { 
-                setCurrentIndex(0); 
-                viewStartTime.current = Date.now();
-              }}
+
+            <div className="space-y-2">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--outline)]">Religion</p>
+              <select 
+                value={filters.religion}
+                onChange={(e) => setFilters(prev => ({...prev, religion: e.target.value}))}
+                className="w-full h-9 rounded-xl border border-[var(--outline-variant)]/20 bg-white px-3 text-xs font-bold appearance-none"
+              >
+                <option value="Any">Any Religion</option>
+                <option value="Hindu">Hindu</option>
+                <option value="Muslim">Muslim</option>
+                <option value="Sikh">Sikh</option>
+                <option value="Christian">Christian</option>
+                <option value="Jain">Jain</option>
+                <option value="Buddhist">Buddhist</option>
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--outline)]">Location</p>
+              <input 
+                type="text" 
+                placeholder="City name..."
+                value={filters.location === "Any" ? "" : filters.location}
+                onChange={(e) => setFilters(prev => ({...prev, location: e.target.value || "Any"}))}
+                className="w-full h-9 rounded-xl border border-[var(--outline-variant)]/20 bg-white px-3 text-xs font-bold"
+              />
+            </div>
+
+            <Button 
+              variant="ghost" 
+              className="w-full text-[10px] uppercase font-bold text-[var(--primary)] tracking-widest"
+              onClick={() => setFilters({ minAge: 18, maxAge: 50, religion: "Any", location: "Any" })}
             >
-              Start Over
+              Reset Filters
             </Button>
           </div>
-        ) : (
-          <div className="relative w-full max-w-sm md:max-w-md h-[70vh] min-h-[500px] flex items-center justify-center">
-            <AnimatePresence>
-              {profiles.map((p, i) => {
-                if (i < currentIndex) return null;
-                if (i > currentIndex + 1) return null; // Render current and next for performance
-                
-                const isCurrent = i === currentIndex;
-                return (
-                  <MatchCard
-                    key={p.uid}
-                    profile={p}
-                    isCurrent={isCurrent}
-                    onSwipe={(dir) => handleSwipe(dir, p)}
-                    onChat={() => handleOpenChat(p)}
-                    userId={user?.uid}
-                  />
-                );
-              }).reverse()}
-            </AnimatePresence>
 
-            {/* Action Buttons (Trackpad / Click friendly) */}
-            <div className="absolute -bottom-20 left-0 right-0 flex justify-center items-center gap-6 z-10">
-              <button
-                title="Pass"
-                onClick={() => handleSwipe("left", currentProfile)}
-                className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-lg border border-[#ede6dc] text-red-500 hover:scale-110 transition-transform active:scale-95"
-              >
-                <X className="w-6 h-6" />
-              </button>
-              <button
-                title="Chat"
-                onClick={() => handleOpenChat(currentProfile)}
-                className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg border border-[#ede6dc] text-blue-500 hover:scale-110 transition-transform active:scale-95"
-              >
-                <MessageCircle className="w-5 h-5" />
-              </button>
-              <button
-                title="Like"
-                onClick={() => handleSwipe("right", currentProfile)}
-                className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-lg border border-[#ede6dc] text-green-500 hover:scale-110 transition-transform active:scale-95"
-              >
-                <Heart className="w-6 h-6 fill-current" />
-              </button>
-            </div>
+          <div className="mt-auto p-4 rounded-2xl bg-gradient-to-br from-[var(--primary)]/10 to-[var(--secondary)]/5 border border-[var(--primary)]/10">
+            <p className="text-xs font-bold text-[var(--primary)] mb-1 flex items-center gap-1">
+              <Star className="w-3 h-3 fill-current" /> Matches Found
+            </p>
+            <p className="text-[10px] text-[var(--on-surface-variant)] leading-relaxed">
+              We found {profiles.length} profiles matching your criteria.
+            </p>
           </div>
-        )}
+        </aside>
+
+        {/* Center: Discovery Content */}
+        <div className="flex-1 flex flex-col overflow-hidden bg-[var(--surface-container-lowest)]">
+          {profiles.length === 0 || currentIndex >= profiles.length ? (
+            <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+              <div className="w-20 h-20 bg-[var(--primary-container)]/30 rounded-full flex items-center justify-center mb-6">
+                <Sparkles className="w-10 h-10 text-[var(--primary)]" />
+              </div>
+              <h2 className="font-serif text-2xl font-bold text-[var(--on-surface)] mb-2">No Matches Found</h2>
+              <Button 
+                onClick={() => setFilters({ minAge: 18, maxAge: 50, religion: "Any", location: "Any" })}
+                className="gold-gradient text-white rounded-full px-8 shadow-lg mt-4"
+              >
+                Reset All Filters
+              </Button>
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col lg:flex-row overflow-hidden p-4 sm:p-6 lg:p-8 gap-8">
+              {/* Massive Picture Area */}
+              <div className="flex-1 relative rounded-[40px] overflow-hidden shadow-2xl group border border-white/20">
+                <Image
+                  src={currentProfile.photos?.[0] || currentProfile.photoURL || `https://ui-avatars.com/api/?name=${currentProfile.name}&size=800`}
+                  alt={currentProfile.name}
+                  fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  className="object-cover"
+                  priority
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20 z-10" />
+                <div className="absolute bottom-0 left-0 right-0 p-8 pt-20 z-20 pointer-events-none">
+                  <h2 className="font-serif text-4xl md:text-5xl font-bold text-white drop-shadow-lg mb-2">
+                    {currentProfile.name}, {currentProfile.age}
+                  </h2>
+                  <div className="flex items-center gap-3 text-white/90 text-sm">
+                    <span><MapPin className="w-4 h-4 inline mr-1" /> {currentProfile.location}</span>
+                    <span><Briefcase className="w-4 h-4 inline mr-1" /> {currentProfile.occupation || "Independent"}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Details Area */}
+              <div className="w-full lg:w-[450px] flex flex-col gap-6 overflow-y-auto custom-scrollbar pr-2">
+                <div className="bg-white rounded-[32px] p-8 shadow-sm border border-[var(--outline-variant)]/20 space-y-8">
+                  {currentProfile.bio && (
+                    <div className="space-y-3">
+                      <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--primary)]">About Me</h3>
+                      <p className="text-base text-[var(--on-surface-variant)] italic font-medium italic">&ldquo;{currentProfile.bio}&rdquo;</p>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-y-6 gap-x-4 pt-4 border-t border-[var(--outline-variant)]/10">
+                    <DetailedStat label="Marital Status" value={currentProfile.maritalStatus} />
+                    <DetailedStat label="Religion" value={currentProfile.religion} />
+                    <DetailedStat label="Caste" value={currentProfile.caste} />
+                    <DetailedStat label="Gotra" value={currentProfile.gotra} />
+                    <DetailedStat label="Diet" value={currentProfile.diet} />
+                    <DetailedStat label="Family" value={currentProfile.familyType} />
+                  </div>
+
+                  {/* Action Bar */}
+                  <div className="pt-8 flex items-center justify-between gap-4">
+                    <button
+                      onClick={() => handleSwipe("left", currentProfile)}
+                      className="flex-1 h-14 rounded-2xl bg-white border border-red-100 flex items-center justify-center text-red-500 hover:bg-red-50 transition-all shadow-sm"
+                    >
+                      <X className="w-6 h-6 mr-2" /> <span className="font-bold">Pass</span>
+                    </button>
+                    <button
+                      onClick={() => handleSwipe("right", currentProfile)}
+                      className="flex-1 h-14 rounded-2xl gold-gradient flex items-center justify-center text-white shadow-xl hover:opacity-90 transition-all"
+                    >
+                      <Heart className="w-6 h-6 mr-2 fill-current" /> <span className="font-bold">Interested</span>
+                    </button>
+                  </div>
+                </div>
+
+                <button 
+                  onClick={() => { setChatProfile(currentProfile); setChatOpen(true); }}
+                  className="w-full bg-[var(--primary-container)]/30 hover:bg-[var(--primary-container)]/50 p-6 rounded-[32px] flex items-center justify-center gap-3 transition-all border border-[var(--primary)]/10"
+                >
+                  <MessageCircle className="w-5 h-5 text-[var(--primary)]" />
+                  <span className="text-sm font-bold text-[var(--primary)]">Send Intro Message (3 left)</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </main>
 
       {/* Chat Panel */}
@@ -207,182 +284,28 @@ export default function MatchesPage() {
           <ChatPanel
             profile={chatProfile}
             currentUser={user}
-            isPremium={isPremium(userProfile)}
+            currentUserProfile={userProfile}
             onClose={() => { setChatOpen(false); setChatProfile(null); }}
             onRequirePremium={() => setShowPremiumModal(true)}
           />
         )}
       </AnimatePresence>
 
-      <PremiumModal
-        open={showPremiumModal}
-        onClose={() => setShowPremiumModal(false)}
-      />
+      <PremiumModal open={showPremiumModal} onClose={() => setShowPremiumModal(false)} />
     </div>
   );
 }
 
-function isPremium(profile: UserProfile | null | undefined): boolean {
-  return profile?.is_premium === true;
-}
-
-/* ─── Match Card (Draggable) ─── */
-function MatchCard({ 
-  profile, 
-  isCurrent, 
-  onSwipe, 
-  onChat,
-  userId
-}: { 
-  profile: UserProfile; 
-  isCurrent: boolean; 
-  onSwipe: (dir: "left" | "right") => void;
-  onChat: () => void;
-  userId?: string;
-}) {
-  const controls = useAnimation();
-  const [photoIndex, setPhotoIndex] = useState(0);
-  const photos = profile.photos?.length ? profile.photos : [profile.photoURL || `https://ui-avatars.com/api/?name=${profile.name}&size=500&background=fed7aa&color=7c2d12`];
-
-  const handleDragEnd = async (event: any, info: PanInfo) => {
-    const swipeThreshold = 100;
-    if (info.offset.x > swipeThreshold) {
-      await controls.start({ x: 500, opacity: 0, rotate: 20 });
-      onSwipe("right");
-    } else if (info.offset.x < -swipeThreshold) {
-      await controls.start({ x: -500, opacity: 0, rotate: -20 });
-      onSwipe("left");
-    } else {
-      controls.start({ x: 0, opacity: 1, rotate: 0 });
-    }
-  };
-
-  const handlePhotoTap = (e: React.MouseEvent, dir: "prev" | "next") => {
-    e.stopPropagation(); // prevent drag trigger
-    if (dir === "prev") {
-      setPhotoIndex(p => Math.max(0, p - 1));
-    } else {
-      setPhotoIndex(p => Math.min(photos.length - 1, p + 1));
-    }
-    
-    if (userId) {
-      logInteraction(userId, profile.uid, "photo_change");
-    }
-  };
-
-  return (
-    <motion.div
-      className={`absolute inset-0 bg-white rounded-3xl shadow-[0_8px_40px_rgba(58,45,39,0.15)] border border-[#ede6dc] overflow-hidden flex flex-col ${!isCurrent && 'pointer-events-none'}`}
-      style={{ originX: 0.5, originY: 1 }}
-      initial={!isCurrent ? { scale: 0.95, y: 20 } : { scale: 1, y: 0 }}
-      animate={controls}
-      drag={isCurrent ? "x" : false}
-      dragConstraints={{ left: 0, right: 0 }}
-      onDragEnd={handleDragEnd}
-      whileTap={isCurrent ? { cursor: "grabbing" } : {}}
-    >
-      {/* Photo Area */}
-      <div className="relative flex-1 bg-[var(--surface-container)] w-full cursor-grab active:cursor-grabbing">
-        <Image
-          src={photos[photoIndex]}
-          alt={profile.name}
-          fill
-          className="object-cover"
-          priority
-          draggable={false}
-        />
-        
-        {/* Carousel Indicators */}
-        {photos.length > 1 && (
-          <div className="absolute top-4 left-0 right-0 flex justify-center gap-1.5 px-4 z-20">
-            {photos.map((_, i) => (
-              <div 
-                key={i} 
-                className={`h-1 flex-1 rounded-full bg-white/50 backdrop-blur-sm transition-all ${i === photoIndex ? 'bg-white shadow-sm' : ''}`}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Tap areas for photo cycle */}
-        {photos.length > 1 && (
-          <>
-            <div 
-              className="absolute top-0 bottom-0 left-0 w-1/2 z-10" 
-              onClick={(e) => handlePhotoTap(e, "prev")}
-            />
-            <div 
-              className="absolute top-0 bottom-0 right-0 w-1/2 z-10" 
-              onClick={(e) => handlePhotoTap(e, "next")}
-            />
-          </>
-        )}
-
-        {/* Info Overlay */}
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-6 pt-20 text-white z-20 pointer-events-none">
-          <div className="flex items-end justify-between">
-            <div>
-              <h2 className="font-serif text-3xl font-bold mb-1 flex items-center gap-2">
-                {profile.name}, {profile.age}
-                {profile.is_premium && <Crown className="w-5 h-5 text-amber-400 fill-amber-400" />}
-              </h2>
-              {profile.tagline && (
-                <p className="text-white/90 italic font-medium mb-2">&ldquo;{profile.tagline}&rdquo;</p>
-              )}
-              <div className="flex items-center gap-1.5 text-white/80 text-sm">
-                <MapPin className="w-4 h-4" />
-                <span>{profile.location}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Basic Details Section */}
-      <div className="shrink-0 p-5 bg-white space-y-3 pointer-events-auto cursor-default">
-        <div className="flex items-center justify-between text-sm">
-          <div className="flex items-center gap-2 text-[var(--on-surface-variant)]">
-            <Briefcase className="w-4 h-4 text-[var(--primary)]" />
-            <span>{profile.occupation || "Not specified"}</span>
-          </div>
-          <div className="flex items-center gap-2 text-[var(--on-surface-variant)]">
-            <GraduationCap className="w-4 h-4 text-[var(--primary)]" />
-            <span>{profile.education || "Not specified"}</span>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {profile.religion && (
-             <span className="px-2.5 py-1 bg-[var(--primary-container)]/40 text-[var(--on-primary-container)] rounded-md text-xs font-medium">
-               {profile.religion}
-             </span>
-          )}
-          {profile.motherTongue && (
-             <span className="px-2.5 py-1 bg-[var(--secondary-container)]/40 text-[var(--secondary)] rounded-md text-xs font-medium">
-               {profile.motherTongue}
-             </span>
-          )}
-          {profile.caste && (
-             <span className="px-2.5 py-1 bg-[var(--surface-container)] text-[var(--on-surface-variant)] rounded-md text-xs font-medium">
-               {profile.caste}
-             </span>
-          )}
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-/* ─── Chat Panel (Slide-in from right) ─── */
 function ChatPanel({ 
   profile, 
   currentUser, 
-  isPremium,
+  currentUserProfile,
   onClose,
   onRequirePremium
 }: { 
   profile: UserProfile; 
   currentUser: any; 
-  isPremium: boolean;
+  currentUserProfile: any;
   onClose: () => void;
   onRequirePremium: () => void;
 }) {
@@ -394,164 +317,90 @@ function ChatPanel({
 
   useEffect(() => {
     async function initChat() {
-      try {
-        const sid = await getOrCreateChatSession(currentUser.uid, profile.uid);
-        setSessionId(sid);
-        
-        // Listen to messages
-        const unsub = subscribeToMessages(sid, (msgs) => {
-          setMessages(msgs);
-        });
-
-        // We also need to poll or listen to session updates, but for simplicity
-        // we'll fetch once, and update local state upon sending.
-        // A robust app would listen to the session doc too.
-        return () => {
-          unsub();
-        };
-      } catch(e) {
-        console.error("Chat init error", e);
-      }
+      const sid = await getOrCreateChatSession(currentUser.uid, profile.uid);
+      setSessionId(sid);
+      return subscribeToMessages(sid, setMessages);
     }
     initChat();
   }, [currentUser.uid, profile.uid]);
 
-  // For this demo, let's derive session data locally based on messages 
-  // or fetch it when needed. To enforce rules cleanly on client:
-  const isInitiator = true; // Ideally derived from sessionData.initiatorId === currentUser.uid
   const myMessageCount = messages.filter(m => m.senderId === currentUser.uid).length;
-  const theirMessageCount = messages.filter(m => m.senderId !== currentUser.uid).length;
-  
-  // Dummy status for now. If there's an actual session, we check it.
-  const status = "pending"; // In a real app, subscribe to session doc to get true status.
+  const status = sessionData?.status || "pending";
+  const isPremium = currentUserProfile?.is_premium === true;
   const canSend = status === "pending" ? myMessageCount < 3 : isPremium;
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
   const handleSend = async () => {
-    if (!input.trim() || !sessionId) return;
-    
-    if (!canSend) {
-      if (status === "pending") {
-        toast.error("Message limit reached. Wait for them to accept.");
-      } else if (!isPremium) {
-        onRequirePremium();
+    if (!input.trim() || !sessionId || !canSend) {
+      if (!canSend) {
+        if (status === "pending") toast.error("Intro limit reached. Wait for acceptance.");
+        else onRequirePremium();
       }
       return;
     }
 
     const text = input.trim();
     setInput("");
-    
     const success = await sendMessage(sessionId, currentUser.uid, text);
-    if (!success) {
-      toast.error("Could not send message. Limit reached or error.");
-      setInput(text); // restore
+    if (success) {
+      await createNotification({
+        userId: profile.uid,
+        type: "message",
+        title: "New message",
+        body: `${currentUserProfile?.name || "Someone"}: ${text.substring(0, 50)}...`,
+        actionUrl: `/chat/${sessionId}`,
+        fromUserId: currentUser.uid,
+        fromUserName: currentUserProfile?.name || "",
+      });
     }
   };
 
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
   return (
     <motion.div
-      initial={{ x: "100%" }}
-      animate={{ x: 0 }}
-      exit={{ x: "100%" }}
-      transition={{ type: "spring", damping: 25, stiffness: 200 }}
-      className="fixed inset-y-0 right-0 w-full sm:w-[420px] bg-[#fefcf8] shadow-2xl z-50 flex flex-col border-l border-[#ede6dc]"
+      initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
+      className="fixed inset-y-0 right-0 w-full sm:w-[420px] bg-white shadow-2xl z-50 flex flex-col border-l border-[var(--outline-variant)]/20"
     >
-      {/* Chat Header */}
-      <div className="shrink-0 px-5 py-4 bg-white border-b border-[#ede6dc] flex items-center gap-3 shadow-sm z-10">
-        <button
-          onClick={onClose}
-          className="w-9 h-9 rounded-full bg-white hover:bg-[var(--surface-container)] flex items-center justify-center transition-colors border border-[#ede6dc]"
-        >
-          <ArrowLeft className="w-4 h-4 text-[var(--on-surface-variant)]" />
-        </button>
-        <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-[var(--primary-container)] shrink-0">
-          <Image
-            src={profile.photos?.[0] || profile.photoURL || `https://ui-avatars.com/api/?name=${profile.name}&size=80`}
-            alt={profile.name}
-            fill
-            className="object-cover"
-            unoptimized
-          />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="font-semibold text-[var(--on-surface)] text-sm truncate">{profile.name}</p>
-          <p className="text-xs text-green-600 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 bg-green-500 rounded-full inline-block" />
-            Online
-          </p>
+      <div className="p-4 border-b flex items-center gap-3">
+        <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full"><ArrowLeft className="w-5 h-5" /></button>
+        <div className="w-10 h-10 rounded-full gold-gradient flex items-center justify-center text-white font-bold">{profile.name[0]}</div>
+        <div className="flex-1">
+          <p className="font-bold text-sm">{profile.name}</p>
+          <p className="text-[10px] text-green-600">3 intro messages available</p>
         </div>
       </div>
 
-      {/* Banner limits */}
-      <div className="shrink-0 bg-[var(--primary-container)]/30 px-4 py-2 flex items-center gap-2 border-b border-[#ede6dc]">
-         <Info className="w-4 h-4 text-[var(--primary)]" />
-         <p className="text-xs text-[var(--on-surface-variant)]">
-           {status === "pending" 
-             ? `Pending connection. You can send ${3 - myMessageCount} more messages.` 
-             : `Connection accepted. ${!isPremium ? "Upgrade to premium for unlimited messages." : ""}`}
-         </p>
-      </div>
-
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.length === 0 && (
-          <div className="text-center py-10 text-[var(--on-surface-variant)] text-sm">
-            Say hi to {profile.name}!
-          </div>
-        )}
-        {messages.map((msg, i) => {
-          const isMe = msg.senderId === currentUser.uid;
-          const time = msg.timestamp ? msg.timestamp.toDate().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Now";
-          return (
-            <div key={msg.id || i} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
-              <div
-                className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-                  isMe
-                    ? "bg-[var(--primary)] text-white rounded-br-sm"
-                    : "bg-white text-[var(--on-surface)] border border-[#ede6dc] shadow-sm rounded-bl-sm"
-                }`}
-              >
-                <p>{msg.text}</p>
-                <p className={`text-[10px] mt-1 text-right ${isMe ? "text-white/60" : "text-[var(--on-surface-variant)]/60"}`}>
-                  {time}
-                </p>
-              </div>
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {messages.map((msg, i) => (
+          <div key={i} className={`flex ${msg.senderId === currentUser.uid ? "justify-end" : "justify-start"}`}>
+            <div className={`max-w-[80%] p-3 rounded-2xl text-sm ${msg.senderId === currentUser.uid ? "bg-[var(--primary)] text-white" : "bg-gray-100"}`}>
+              {msg.text}
             </div>
-          )
-        })}
+          </div>
+        ))}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area */}
-      <div className="shrink-0 p-4 bg-white border-t border-[#ede6dc]">
-        <form
-          onSubmit={(e) => { e.preventDefault(); handleSend(); }}
-          className="flex gap-2"
-        >
-          <Input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={canSend ? "Type a message..." : "Limit reached or upgrade required"}
-            disabled={!canSend}
-            className="flex-1 rounded-full bg-[var(--surface-container-low)] border-[#ede6dc] focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition-all text-sm"
-          />
-          <button
-            type="submit"
-            disabled={!input.trim() || !canSend}
-            className="w-10 h-10 gold-gradient rounded-full flex items-center justify-center text-white shadow-sm hover:opacity-90 transition-opacity disabled:opacity-40 shrink-0"
-          >
-            <Send className="w-4 h-4" />
-          </button>
-        </form>
+      <div className="p-4 border-t flex gap-2">
+        <Input 
+          value={input} 
+          onChange={(e) => setInput(e.target.value)} 
+          placeholder={canSend ? "Type a message..." : "Limit reached"}
+          className="flex-1 rounded-full"
+          disabled={!canSend}
+        />
+        <Button onClick={handleSend} disabled={!canSend} className="gold-gradient rounded-full w-10 h-10 p-0"><Send className="w-4 h-4" /></Button>
       </div>
     </motion.div>
+  );
+}
+
+function DetailedStat({ label, value }: { label: string; value?: string }) {
+  if (!value || value === "undefined") return null;
+  return (
+    <div className="space-y-1">
+      <p className="text-[10px] font-medium text-[var(--outline)] uppercase">{label}</p>
+      <p className="text-sm font-bold text-[var(--on-surface)] capitalize">{value}</p>
+    </div>
   );
 }
