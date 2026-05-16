@@ -6,10 +6,10 @@ import { MessageSquare, Loader2 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import ChatSidebar from "@/components/ChatSidebar";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { getOrCreateChatSession } from "@/lib/chat";
 
-export default function ChatListPage() {
+function ChatContent() {
   const { user, loading } = useAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -58,5 +58,17 @@ export default function ChatListPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function ChatListPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
+        <Loader2 className="w-10 h-10 text-[var(--primary)] animate-spin" />
+      </div>
+    }>
+      <ChatContent />
+    </Suspense>
   );
 }
