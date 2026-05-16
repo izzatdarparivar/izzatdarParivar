@@ -1,0 +1,88 @@
+<h2>Proposed UI and Functional Fixes</h2>
+<p class="subtitle">Review the proposed changes for the reported issues</p>
+
+<div class="section">
+  <h3>1. Chat Sidebar: Deduplicate Sessions</h3>
+  <div class="mockup">
+    <div class="mockup-header">Chat Sidebar (Proposed)</div>
+    <div class="mockup-body">
+      <div class="mock-nav">Messages (1)</div>
+      <div class="option" style="margin: 10px; border: 1px solid var(--primary); background: #fffaf0;">
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold;">RD</div>
+          <div>
+            <div style="font-weight: bold;">Rohan Desai</div>
+            <div style="font-size: 0.8em; color: #666;">Hi (Most recent)</div>
+          </div>
+        </div>
+      </div>
+      <p style="font-size: 0.8em; color: #666; margin-left: 10px;">Duplicate sessions for the same user will be merged.</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>2. Navbar Dropdown: Improved Visibility</h3>
+  <div class="mockup">
+    <div class="mockup-header">Dropdown Menu (Proposed)</div>
+    <div class="mockup-body" style="background: #f0f0f0; padding: 20px;">
+       <div style="background: white; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); padding: 10px; width: 200px;">
+          <div style="padding: 5px 10px; font-weight: bold; color: var(--primary); font-size: 0.7em;">ACCOUNT</div>
+          <div style="padding: 10px; border-radius: 8px; background: rgba(249, 115, 22, 0.1); color: var(--primary); font-weight: bold;">Dashboard</div>
+          <div style="padding: 10px;">Edit Profile</div>
+          <div style="padding: 10px;">Messages (3)</div>
+          <hr style="border: 0; border-top: 1px solid #eee; margin: 5px 0;">
+          <div style="padding: 10px; color: red;">Sign Out</div>
+       </div>
+    </div>
+  </div>
+  <p class="subtitle">Added solid background and refined shadows to prevent clutter when overlapping.</p>
+</div>
+
+<div class="section">
+  <h3>3. WhatsApp & Calls: New Actions</h3>
+  <div class="split">
+    <div class="mockup">
+      <div class="mockup-header">Chat Header (Proposed)</div>
+      <div class="mockup-body">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #eee;">
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <div style="width: 32px; height: 32px; border-radius: 50%; background: #ccc;"></div>
+            <div style="font-weight: bold;">Pooja Singh</div>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="mock-button" style="background: #25D366; border: none; padding: 5px 10px; color: white; border-radius: 8px; font-size: 0.7em;">Voice</button>
+            <button class="mock-button" style="background: #25D366; border: none; padding: 5px 10px; color: white; border-radius: 8px; font-size: 0.7em;">Video</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="mockup">
+      <div class="mockup-header">Profile Actions (Proposed)</div>
+      <div class="mockup-body" style="padding: 10px;">
+        <div style="display: flex; gap: 10px;">
+          <button class="mock-button" style="flex: 1;">Message</button>
+          <button class="mock-button" style="background: #25D366; border: none; color: white; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 12px;">WA</button>
+        </div>
+        <p style="font-size: 0.7em; margin-top: 10px;">Direct WhatsApp chat button for matches.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="approve" onclick="toggleSelect(this)">
+    <div class="letter">✓</div>
+    <div class="content">
+      <h3>Looks good!</h3>
+      <p>Proceed with these fixes.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="revise" onclick="toggleSelect(this)">
+    <div class="letter">✎</div>
+    <div class="content">
+      <h3>I have changes</h3>
+      <p>Let's discuss some adjustments.</p>
+    </div>
+  </div>
+</div>

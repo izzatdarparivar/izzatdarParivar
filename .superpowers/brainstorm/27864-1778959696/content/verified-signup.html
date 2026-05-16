@@ -1,0 +1,89 @@
+<h2>Updated Signup Flow: Mandatory OTP Verification</h2>
+<p class="subtitle">Ensuring every account is verified via mobile OTP for trust and safety</p>
+
+<div class="section">
+  <h3>New Signup Steps</h3>
+  <div class="cards" data-multiselect>
+    <div class="card" data-choice="step1">
+      <div class="card-body">
+        <div class="label">Step 1</div>
+        <h3>Basic Information</h3>
+        <p>Name, Email, and Secure Password</p>
+      </div>
+    </div>
+    <div class="card" data-choice="step2">
+      <div class="card-body">
+        <div class="label">Step 2</div>
+        <h3>Mobile Verification</h3>
+        <p>Enter mobile number for verification</p>
+      </div>
+    </div>
+    <div class="card" data-choice="step3">
+      <div class="card-body">
+        <div class="label">Step 3</div>
+        <h3>OTP Confirmation</h3>
+        <p>Enter 6-digit code sent to your phone</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>WhatsApp Integration: "Chat on WhatsApp"</h3>
+  <div class="mockup">
+    <div class="mockup-header">Profile Actions (Updated)</div>
+    <div class="mockup-body" style="padding: 20px;">
+      <div style="display: flex; gap: 15px; align-items: center; background: white; padding: 15px; border-radius: 20px; border: 1px solid #eee;">
+        <div style="flex: 1;">
+          <div style="font-weight: bold; font-size: 1.1em;">Pooja Singh</div>
+          <div style="font-size: 0.8em; color: #666;">+91 70617 85692</div>
+        </div>
+        <div style="display: flex; gap: 10px;">
+           <button class="mock-button" style="background: #25D366; color: white; border: none; padding: 10px 15px; border-radius: 12px; font-weight: bold; display: flex; align-items: center; gap: 5px;">
+             <span style="font-size: 1.2em;">💬</span> Chat on WhatsApp
+           </button>
+           <button class="mock-button" style="border: 2px solid #25D366; color: #25D366; padding: 8px; border-radius: 12px; font-size: 1.2em;">
+             ↗️
+           </button>
+        </div>
+      </div>
+      <p style="font-size: 0.7em; color: #666; margin-top: 10px;">The "Chat on WhatsApp" button will be available next to the phone number for premium users.</p>
+    </div>
+  </div>
+</div>
+
+<div class="pros-cons">
+  <div class="pros">
+    <h4>Benefits</h4>
+    <ul>
+      <li>Higher trust score for all profiles</li>
+      <li>Eliminates fake accounts/spam</li>
+      <li>Direct communication channel for serious matches</li>
+      <li>Aligns with Bharat-first design principles</li>
+    </ul>
+  </div>
+  <div class="cons">
+    <h4>Trade-offs</h4>
+    <ul>
+      <li>Higher friction during signup</li>
+      <li>Requires SMS gateway integration (Firebase Auth standard)</li>
+    </ul>
+  </div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="implement_otp" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Implement Mandatory OTP</h3>
+      <p>Combine email/phone setup into a single verified flow.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="implement_wa" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Implement WA Features</h3>
+      <p>Add "Chat on WhatsApp" and improved sharing.</p>
+    </div>
+  </div>
+</div>

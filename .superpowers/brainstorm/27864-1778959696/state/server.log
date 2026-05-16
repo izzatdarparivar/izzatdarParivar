@@ -1,0 +1,6 @@
+{"type":"server-started","port":64775,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:64775","screen_dir":"/Users/yudhistherkumar/Downloads/izzatdarParivar-main/.superpowers/brainstorm/27864-1778959696/content","state_dir":"/Users/yudhistherkumar/Downloads/izzatdarParivar-main/.superpowers/brainstorm/27864-1778959696/state"}
+{"type":"screen-added","file":"/Users/yudhistherkumar/Downloads/izzatdarParivar-main/.superpowers/brainstorm/27864-1778959696/content/ui-fixes.html"}
+{"source":"user-event","type":"click","text":"✎\n    \n      I have changes\n      Let's discuss some adjustments.","choice":"revise","id":null,"timestamp":1778959749717}
+{"source":"user-event","type":"click","text":"✓\n    \n      Looks good!\n      Proceed with these fixes.","choice":"approve","id":null,"timestamp":1778959754351}
+{"type":"screen-added","file":"/Users/yudhistherkumar/Downloads/izzatdarParivar-main/.superpowers/brainstorm/27864-1778959696/content/verified-signup.html"}
+{"type":"server-stopped","reason":"idle timeout"}
