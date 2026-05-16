@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 };
 
 
-import { ClerkProvider } from '@clerk/nextjs'
+
 
 export default function RootLayout({
   children,
