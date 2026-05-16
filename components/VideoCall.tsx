@@ -96,6 +96,13 @@ export default function VideoCall({ callId: existingCallId, receiverId, receiver
           video: type === "video", 
           audio: true 
         });
+
+        // Abort if the call was ended or component unmounted while waiting for camera
+        if (pc.signalingState === "closed") {
+          stream.getTracks().forEach(t => t.stop());
+          return;
+        }
+
         localStreamRef.current = stream;
         if (localVideoRef.current) localVideoRef.current.srcObject = stream;
         
@@ -203,6 +210,10 @@ export default function VideoCall({ callId: existingCallId, receiverId, receiver
       await answerCall(callId);
       const pc = setupPeerConnection();
       const stream = await navigator.mediaDevices.getUserMedia({ video: type === "video", audio: true });
+      if (pc.signalingState === "closed") {
+        stream.getTracks().forEach(t => t.stop());
+        return;
+      }
       localStreamRef.current = stream;
       stream.getTracks().forEach((track) => pc.addTrack(track, stream));
       if (localVideoRef.current) localVideoRef.current.srcObject = stream;
