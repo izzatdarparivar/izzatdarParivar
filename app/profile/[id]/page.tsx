@@ -94,7 +94,7 @@ export default function ProfileViewPage() {
   }
 
 
-  const age = profile.age || (profile.dob ? Math.floor((Date.now() - (profile.dob.toDate ? profile.dob.toDate() : new Date(profile.dob)).getTime()) / 31557600000) : 0);
+  const age = profile.age || (profile.dob ? Math.floor((Date.now() - (profile.dob.toDate ? profile.dob.toDate() : new Date(profile.dob as any)).getTime()) / 31557600000) : 0);
 
 
   return (
@@ -357,7 +357,7 @@ export default function ProfileViewPage() {
                  <p className="font-bold">Contact Privacy Protected</p>
                  <p className="text-xs text-white/70">Phone numbers and emails are only visible to verified premium members.</p>
                </div>
-               {!user?.is_premium && (
+               {!(user as any)?.is_premium && (
                  <Button onClick={() => router.push("/pricing")} className="ml-auto bg-white text-[#800000] hover:bg-white/90 rounded-full font-bold px-6">
                    Upgrade
                  </Button>

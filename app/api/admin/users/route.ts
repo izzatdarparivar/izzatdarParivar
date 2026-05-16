@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
     const hasMore = users.length > start + limitNum;
 
     // Format output
-    const finalUsers = paginatedUsers.map(u => ({
+    const finalUsers = paginatedUsers.map((u: any) => ({
       ...u,
       createdAt: u.createdAtStr
     }));
@@ -99,8 +99,8 @@ export async function PATCH(req: NextRequest) {
 
 
     if (safeUpdates.role) {
-      const { getAdminAuth } = await import("@/lib/firebase-admin");
-      await getAdminAuth().setCustomUserClaims(userId, { role: safeUpdates.role });
+      const { adminAuth } = await import("@/lib/firebase-admin");
+      await adminAuth.setCustomUserClaims(userId, { role: safeUpdates.role });
     }
 
 

@@ -52,7 +52,7 @@ export default function QuickSignupPage() {
     setError("");
     try {
       // Create account with phone auth + basic profile
-      await signUp(`${formData.phone}@phone.izzatdarparivar.com`, formData.phone + "pass");
+      await signUp(`${formData.phone}@phone.izzatdarparivar.com`, formData.phone + "pass", formData.name);
       router.push("/profile/edit");
     } catch (e: any) {
       setError(e.message || "Something went wrong");
