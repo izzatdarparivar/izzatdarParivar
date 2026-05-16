@@ -19,7 +19,7 @@ export default function SignUpPage() {
     try {
       await signUp(form.email, form.password, form.name);
       toast.success("Account created successfully!");
-      router.push("/onboarding");
+      router.push("/profile/create");
     } catch (err: any) {
       toast.error(err.message || "Failed to create account");
     } finally {
@@ -32,7 +32,7 @@ export default function SignUpPage() {
     try {
       await signInWithGoogle();
       toast.success("Signed in with Google!");
-      router.push("/onboarding");
+      router.push("/profile/create");
     } catch (err: any) {
       toast.error("Google sign in failed");
     } finally {
