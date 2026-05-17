@@ -75,6 +75,45 @@ const PRESET_HOBBIES = [
 ];
 
 
+const compressAndResizeImage = (file: File, maxWidth = 1000, maxHeight = 1000, quality = 0.8): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const img = document.createElement("img");
+    img.src = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(img.src);
+      const canvas = document.createElement("canvas");
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height) {
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+      } else {
+        if (height > maxHeight) {
+          width = Math.round((width * maxHeight) / height);
+          height = maxHeight;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("Canvas context is null"));
+        return;
+      }
+
+      ctx.drawImage(img, 0, 0, width, height);
+      const base64 = canvas.toDataURL("image/jpeg", quality);
+      resolve(base64);
+    };
+    img.onerror = (err) => reject(err);
+  });
+};
+
+
 export default function CreateProfilePage() {
   const { user, refreshProfile } = useAuth();
   const router = useRouter();
@@ -238,43 +277,41 @@ export default function CreateProfilePage() {
                   const file = e.target.files?.[0];
                   if (!file) return;
                  
-                  const reader = new FileReader();
-                  reader.onloadend = async () => {
-                    const base64 = reader.result as string;
-                    const toastId = toast.loading("Uploading photo...");
+                  const toastId = toast.loading("Compressing and uploading photo...");
+                  
+                  try {
+                    // Compress and resize the image client-side to be mobile-friendly and fit Vercel payload limits (< 4.5MB)
+                    const base64 = await compressAndResizeImage(file);
                     
-                    try {
-                      // 1. Try Cloudinary
-                      const res = await uploadImageAction(base64);
-                      if (res.success && res.url) {
-                        set("photoURL", res.url);
-                        toast.success("Photo uploaded successfully!", { id: toastId });
-                        return;
-                      }
-                      
-                      // Log warning that Cloudinary failed or isn't configured
-                      console.warn("Cloudinary upload failed or keys missing. Falling back to Firebase Storage.");
-
-                      // 2. Fallback to Firebase Storage
-                      if (user) {
-                        const { ref, uploadString, getDownloadURL } = await import("firebase/storage");
-                        const { storage } = await import("@/lib/firebase");
-                        
-                        const storageRef = ref(storage, `profiles/${user.uid}/profile_${Date.now()}.jpg`);
-                        await uploadString(storageRef, base64, 'data_url');
-                        const url = await getDownloadURL(storageRef);
-                        
-                        set("photoURL", url);
-                        toast.success("Photo uploaded successfully via Firebase!", { id: toastId });
-                      } else {
-                        throw new Error("No logged in user found for upload fallback.");
-                      }
-                    } catch (err: any) {
-                      console.error("Upload failed in both pipelines:", err);
-                      toast.error("Photo upload failed. Please try again.", { id: toastId });
+                    // 1. Try Cloudinary
+                    const res = await uploadImageAction(base64);
+                    if (res.success && res.url) {
+                      set("photoURL", res.url);
+                      toast.success("Photo uploaded successfully!", { id: toastId });
+                      return;
                     }
-                  };
-                  reader.readAsDataURL(file);
+                    
+                    // Log warning that Cloudinary failed or isn't configured
+                    console.warn("Cloudinary upload failed or keys missing. Falling back to Firebase Storage.");
+
+                    // 2. Fallback to Firebase Storage
+                    if (user) {
+                      const { ref, uploadString, getDownloadURL } = await import("firebase/storage");
+                      const { storage } = await import("@/lib/firebase");
+                      
+                      const storageRef = ref(storage, `profiles/${user.uid}/profile_${Date.now()}.jpg`);
+                      await uploadString(storageRef, base64, 'data_url');
+                      const url = await getDownloadURL(storageRef);
+                      
+                      set("photoURL", url);
+                      toast.success("Photo uploaded successfully via Firebase!", { id: toastId });
+                    } else {
+                      throw new Error("No logged in user found for upload fallback.");
+                    }
+                  } catch (err: any) {
+                    console.error("Upload failed in both pipelines:", err);
+                    toast.error("Photo upload failed. Please try again.", { id: toastId });
+                  }
                 }}
               />
             </div>
