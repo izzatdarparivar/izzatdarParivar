@@ -1,13 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebase-admin";
+import { requireAuth } from "@/lib/api-auth";
 
 
 export async function POST(request: NextRequest) {
+  const callerUid = await requireAuth(request);
+  if (!callerUid) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const body = await request.json();
-  const { userId, profileId, notes, action } = body;
+  const { profileId, notes, action } = body;
+  const userId = callerUid; // Always use verified UID
 
 
-  if (!userId || !profileId) return NextResponse.json({ error: "userId and profileId required" }, { status: 400 });
+  if (!profileId) return NextResponse.json({ error: "profileId required" }, { status: 400 });
   if (userId === profileId) return NextResponse.json({ error: "Cannot shortlist yourself" }, { status: 400 });
 
 
@@ -28,9 +35,14 @@ export async function POST(request: NextRequest) {
 
 
 export async function GET(request: NextRequest) {
+  const callerUid = await requireAuth(request);
+  if (!callerUid) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
-  const uid = searchParams.get("uid");
-  if (!uid) return NextResponse.json({ error: "uid required" }, { status: 400 });
+  const uid = searchParams.get("uid") || callerUid;
+  if (uid !== callerUid) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
 
   const adminDb = getAdminDb();

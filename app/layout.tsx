@@ -28,6 +28,8 @@ export const metadata: Metadata = {
 
 
 
+import { BharatModeProvider } from "@/context/BharatModeContext";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -36,11 +38,13 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${montserrat.variable}`} data-scroll-behavior="smooth">
       <body className="antialiased">
-        <AuthProvider>
-          {children}
-          <Toaster richColors position="top-right" />
-          <SpeedInsights />
-        </AuthProvider>
+        <BharatModeProvider>
+          <AuthProvider>
+            {children}
+            <Toaster richColors position="top-right" />
+            <SpeedInsights />
+          </AuthProvider>
+        </BharatModeProvider>
       </body>
     </html>
   );

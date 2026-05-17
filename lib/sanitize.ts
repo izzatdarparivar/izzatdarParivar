@@ -16,7 +16,8 @@ export function sanitizeBasic(input: string): string {
 
 
 export function sanitizeDisplayName(name: string): string {
-  const cleaned = name.replace(/[^a-zA-Z\s'.,\-]/g, "").trim();
+  const noHtml = sanitizeStrict(name);
+  const cleaned = noHtml.replace(/[^a-zA-Z\s'.,\-]/g, "").trim();
   return cleaned.slice(0, 50);
 }
 

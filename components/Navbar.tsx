@@ -176,6 +176,25 @@ export default function Navbar() {
                     <DropdownMenuItem asChild className={isActive("/notifications") ? "bg-[var(--primary-container)]/30 text-[var(--primary)] font-bold" : ""}>
                       <Link href="/notifications" className="flex items-center gap-2 py-2.5">Notifications {notifCount > 0 && `(${notifCount})`}</Link>
                     </DropdownMenuItem>
+                    <DropdownMenuSeparator className="my-1 bg-[var(--outline-variant)]/10" />
+                    <div className="px-3 py-1">
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Settings</p>
+                    </div>
+                    <DropdownMenuItem asChild className={isActive("/settings/privacy") ? "bg-[var(--primary-container)]/30 text-[var(--primary)] font-bold" : ""}>
+                      <Link href="/settings/privacy" className="flex items-center gap-2 py-1.5 text-xs">Privacy Settings</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild className={isActive("/settings/verification") ? "bg-[var(--primary-container)]/30 text-[var(--primary)] font-bold" : ""}>
+                      <Link href="/settings/verification" className="flex items-center gap-2 py-1.5 text-xs">Verification</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild className={isActive("/settings/referrals") ? "bg-[var(--primary-container)]/30 text-[var(--primary)] font-bold" : ""}>
+                      <Link href="/settings/referrals" className="flex items-center gap-2 py-1.5 text-xs">Referrals</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild className={isActive("/settings/blocked") ? "bg-[var(--primary-container)]/30 text-[var(--primary)] font-bold" : ""}>
+                      <Link href="/settings/blocked" className="flex items-center gap-2 py-1.5 text-xs">Blocked Users</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild className={isActive("/settings/account") ? "bg-[var(--primary-container)]/30 text-[var(--primary)] font-bold" : ""}>
+                      <Link href="/settings/account" className="flex items-center gap-2 py-1.5 text-xs text-red-600">Delete Account</Link>
+                    </DropdownMenuItem>
                     {isAdmin && (
                       <>
                         <DropdownMenuSeparator className="my-1.5 bg-[var(--outline-variant)]/10" />

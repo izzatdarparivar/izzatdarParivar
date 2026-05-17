@@ -131,7 +131,9 @@ service cloud.firestore {
       allow read, write: if isSelf(blockerId);
 
       match /blockedUsers/{blockedUserId} {
-        allow read, write: if isSelf(blockerId);
+        // Blocker has full read/write, but the blocked user can read their own entry to verify block status safely
+        allow read: if isSelf(blockerId) || isSelf(blockedUserId);
+        allow write: if isSelf(blockerId);
       }
     }
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebase-admin";
+import { requireAuth } from "@/lib/api-auth";
 
 
 const VALID_REASONS = [
@@ -16,17 +17,22 @@ type ReportReason = (typeof VALID_REASONS)[number];
 
 export async function POST(request: NextRequest) {
   try {
+    const callerUid = await requireAuth(request);
+    if (!callerUid) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
-    const { reportedBy, reportedUser, reason, details } = body as {
-      reportedBy: string;
+    const { reportedUser, reason, details } = body as {
       reportedUser: string;
       reason: ReportReason;
       details?: string;
     };
+    const reportedBy = callerUid; // Always use verified UID
 
-    if (!reportedBy || !reportedUser || !reason) {
+    if (!reportedUser || !reason) {
       return NextResponse.json(
-        { error: "reportedBy, reportedUser, and reason are required" },
+        { error: "reportedUser and reason are required" },
         { status: 400 }
       );
     }

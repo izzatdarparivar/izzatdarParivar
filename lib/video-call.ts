@@ -3,6 +3,7 @@ import {
   doc,
   setDoc,
   getDoc,
+  getDocs,
   updateDoc,
   onSnapshot,
   collection,
@@ -45,17 +46,25 @@ export async function initiateCall(
   receiverName: string,
   type: "video" | "voice"
 ): Promise<string> {
-  const callsRef = collection(db, "calls");
-  const docRef = await addDoc(callsRef, {
-    callerId,
-    callerName,
-    receiverId,
-    receiverName,
-    type,
-    status: "ringing",
-    createdAt: serverTimestamp(),
+  const { auth } = await import("@/lib/firebase");
+  const token = await auth.currentUser?.getIdToken();
+
+  const res = await fetch("/api/calls/initiate", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({ receiverId, receiverName, type })
   });
-  return docRef.id;
+
+  if (!res.ok) {
+    const errData = await res.json();
+    throw new Error(errData.error || "Failed to initiate call");
+  }
+
+  const data = await res.json();
+  return data.callId;
 }
 
 
@@ -103,16 +112,29 @@ export async function sendSignal(callId: string, signal: RTCSignal): Promise<voi
 
 export function onSignal(callId: string, userId: string, callback: (signal: RTCSignal) => void): () => void {
   const signalsRef = collection(db, "calls", callId, "signals");
+  const startTime = new Date(); // Only process signals from now onward — prevents replay on reconnect
   return onSnapshot(signalsRef, (snapshot) => {
     snapshot.docChanges().forEach((change) => {
       if (change.type === "added") {
-        const data = change.doc.data() as RTCSignal;
+        const data = change.doc.data() as RTCSignal & { timestamp: any };
+        // Skip signals that existed before we started listening
+        if (data.timestamp?.toDate && data.timestamp.toDate() < startTime) return;
         if (data.to === userId) {
           callback(data);
         }
       }
     });
   });
+}
+
+
+// CALL-04: Delete the signals subcollection when a call ends to prevent
+// duplicate setRemoteDescription / addIceCandidate crashes on reconnect.
+export async function cleanupCallSignals(callId: string): Promise<void> {
+  const signalsRef = collection(db, "calls", callId, "signals");
+  const snap = await getDocs(signalsRef);
+  const deletes = snap.docs.map(d => deleteDoc(d.ref));
+  await Promise.all(deletes);
 }
 
 

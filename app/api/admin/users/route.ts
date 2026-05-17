@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
       const data = doc.data();
       return {
         uid: doc.id,
-        displayName: data.displayName || "",
+        displayName: data.name || data.displayName || "",
         email: data.email || "",
         status: data.status || "pending",
         role: data.role || "user",

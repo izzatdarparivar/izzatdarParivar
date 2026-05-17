@@ -22,17 +22,20 @@ import {
   Banknote,
   Info,
   Share2,
-  Download
+  Download,
+  EyeOff,
+  PhoneOff
 } from "lucide-react";
 import Image from "next/image";
 import InterestButton from "@/components/InterestButton";
 import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
 
 
 export default function ProfileViewPage() {
   const { id } = useParams();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [interestStatus, setInterestStatus] = useState<"none" | "sent" | "mutual">("none");
@@ -96,6 +99,11 @@ export default function ProfileViewPage() {
 
   const age = profile.age || (profile.dob ? Math.floor((Date.now() - (profile.dob.toDate ? profile.dob.toDate() : new Date(profile.dob as any)).getTime()) / 31557600000) : 0);
 
+  const isPremiumOrVerified = (userProfile as any)?.isPremium || (userProfile as any)?.status === "approved" || (user as any)?.is_premium;
+  const isOwnProfile = user?.uid === profile.uid;
+  const showPhotos = !(profile as any).hidePhotos || isPremiumOrVerified || isOwnProfile || interestStatus === "mutual";
+  const showContact = !(profile as any).hideContactInfo || isPremiumOrVerified || isOwnProfile || interestStatus === "mutual";
+
 
   return (
     <div className="min-h-screen bg-[#fff9f0] pb-20">
@@ -123,14 +131,32 @@ export default function ProfileViewPage() {
                 src={profile.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&size=800&background=f3e8d5&color=800000`}
                 alt={profile.name}
                 fill
-                className="object-cover"
+                className={`object-cover ${!showPhotos ? "blur-3xl scale-105 pointer-events-none select-none" : ""}`}
                 priority
                 loading="eager"
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               />
               {profile.is_premium && (
-                <div className="absolute top-6 right-6 gold-gradient p-2.5 rounded-2xl shadow-lg border border-white/20">
+                <div className="absolute top-6 right-6 gold-gradient p-2.5 rounded-2xl shadow-lg border border-white/20 z-10">
                   <Crown className="w-6 h-6 text-white" />
+                </div>
+              )}
+              {!showPhotos && (
+                <div className="absolute inset-0 bg-black/45 backdrop-blur-[1px] flex flex-col items-center justify-center text-center p-6 text-white z-20 space-y-4">
+                  <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center border border-white/30 shadow-lg animate-bounce">
+                    <EyeOff className="w-8 h-8 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-serif text-xl font-bold">Photo Hidden by User</h3>
+                    <p className="text-xs text-white/80 mt-1 max-w-[240px] mx-auto leading-relaxed font-sans">
+                      This user has restricted photo visibility. Upgrade to premium or connect with them to view their photos.
+                    </p>
+                  </div>
+                  {!(user as any)?.is_premium && (
+                    <Button onClick={() => router.push("/pricing")} className="bg-white text-[#800000] hover:bg-white/90 rounded-full font-bold px-6 shadow-md transition-all font-sans">
+                      Upgrade to View
+                    </Button>
+                  )}
                 </div>
               )}
               <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-black/80 via-black/20 to-transparent text-white">
@@ -188,9 +214,9 @@ export default function ProfileViewPage() {
               </Button>
 
 
-              {profile.phone && (
+              {profile.phone && showContact ? (
                 <Button
-                  className="w-14 h-14 rounded-2xl bg-[#25D366] text-white hover:bg-[#25D366]/90 shadow-lg"
+                  className="w-14 h-14 rounded-2xl bg-[#25D366] text-white hover:bg-[#25D366]/90 shadow-lg animate-pulse"
                   onClick={() => {
                     const text = encodeURIComponent(`Hi ${profile.name}, I found your profile on Izzatdar Parivar and would like to connect.`);
                     window.open(`https://wa.me/${profile.phone.replace(/\D/g, '')}?text=${text}`, '_blank');
@@ -199,7 +225,15 @@ export default function ProfileViewPage() {
                 >
                   <MessageSquare className="w-6 h-6" />
                 </Button>
-              )}
+              ) : profile.phone ? (
+                <Button
+                  className="w-14 h-14 rounded-2xl bg-gray-200 text-gray-400 border border-gray-300 shadow-none cursor-not-allowed hover:bg-gray-200"
+                  onClick={() => toast.error("Contact details are restricted. Connect or upgrade to premium to contact this user.")}
+                  title="Contact info restricted by user"
+                >
+                  <PhoneOff className="w-6 h-6" />
+                </Button>
+              ) : null}
 
 
               <Button
@@ -209,7 +243,13 @@ export default function ProfileViewPage() {
                   try {
                     const { mapProfileToBiodata } = await import("@/lib/biodata-pdf");
                     const { generateBiodataPDF, downloadBiodataPDF } = await import("@/components/BiodataPDF");
-                    const biodata = mapProfileToBiodata(profile);
+                    // Secure phone and whatsapp if not allowed to show contact info
+                    const secureProfile = {
+                      ...profile,
+                      phone: showContact ? profile.phone : "Restricted",
+                      whatsapp: showContact ? profile.whatsapp : "Restricted",
+                    };
+                    const biodata = mapProfileToBiodata(secureProfile);
                     const blob = await generateBiodataPDF(biodata);
                     downloadBiodataPDF(blob, profile.name.replace(/\s+/g, '_'));
                   } catch (err) {

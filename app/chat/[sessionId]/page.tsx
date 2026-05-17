@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import ChatSidebar from "@/components/ChatSidebar";
+import CallPermissionBadge from "@/components/CallPermissionBadge";
 
 
 export default function ChatSessionPage() {
@@ -81,7 +82,17 @@ export default function ChatSessionPage() {
     });
 
 
-    // Listen for incoming calls
+    return () => {
+      unsub();
+    };
+  }, [user, sessionId, router]);
+
+  // Listen for incoming calls — isolated to run only when otherProfile is loaded.
+  // Filters out stale calls and calls from other participants to guarantee stability and prevent auto-calling.
+  useEffect(() => {
+    if (!user || !otherProfile) return;
+
+    const startTime = new Date();
     const callsRef = collection(db, "calls");
     const q = query(
       callsRef,
@@ -89,31 +100,33 @@ export default function ChatSessionPage() {
       where("status", "==", "ringing")
     );
 
-
     const unsubCalls = onSnapshot(q, {
       next: (snapshot) => {
         snapshot.docChanges().forEach((change) => {
           if (change.type === "added") {
             const callData = change.doc.data() as CallSession;
-            setActiveCall({ type: callData.type, incoming: change.doc.id });
+            // 1. Check if call is from the current active participant
+            const isFromCurrentMatch = callData.callerId === otherProfile.uid;
+            // 2. Check if the call is fresh (initiated after page mount)
+            const callTime = callData.createdAt?.toDate ? callData.createdAt.toDate() : null;
+            const isStale = callTime ? callTime < startTime : false;
+
+            if (isFromCurrentMatch && !isStale) {
+              setActiveCall({ type: callData.type, incoming: change.doc.id });
+            }
           }
         });
       },
       error: (err) => {
         console.warn("Incoming Call Listener (Permission Check):", err.message);
-        // Only show toast if it's not a permission error (which we expect if rules aren't set yet)
         if (!err.message.includes("permissions")) {
           toast.error("Real-time call signaling is unavailable.");
         }
       }
     });
 
-
-    return () => {
-      unsub();
-      unsubCalls();
-    };
-  }, [user, sessionId, router]);
+    return () => unsubCalls();
+  }, [user, otherProfile]);
 
 
   const scrollToBottom = () => {
@@ -172,6 +185,25 @@ export default function ChatSessionPage() {
   };
 
 
+  const handleCallAttempt = async (type: "voice" | "video") => {
+    if (!otherProfile || !user) return;
+
+    // Check permission before opening call UI
+    const { canUserCall } = await import("@/lib/call-permissions");
+    const permission = await canUserCall(user.uid, otherProfile.uid);
+
+    if (!permission.allowed) {
+      toast.error(
+        "You can only call someone after they've accepted your interest or you have an active chat.",
+        { duration: 4000 }
+      );
+      return;
+    }
+
+    setActiveCall({ type });
+  };
+
+
   const displayName = otherProfile?.name || "User";
   const initial = displayName[0]?.toUpperCase() || "?";
 
@@ -208,24 +240,42 @@ export default function ChatSessionPage() {
               </Link>
 
 
-              <div className="relative w-10 h-10 rounded-full gold-gradient flex items-center justify-center text-white font-serif font-bold flex-shrink-0 shadow-ambient">
-                {initial}
-                <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full shadow-sm" />
-              </div>
+              {otherProfile ? (
+                <Link
+                  href={`/profile/${otherProfile.uid}`}
+                  className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-85 transition-opacity"
+                >
+                  <div className="relative w-10 h-10 rounded-full gold-gradient flex items-center justify-center text-white font-serif font-bold flex-shrink-0 shadow-ambient">
+                    {initial}
+                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full shadow-sm" />
+                  </div>
 
-
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <p className="text-sm font-bold text-[var(--on-surface)] truncate">{displayName}</p>
-                  {otherProfile?.status === "approved" && (
-                    <ShieldCheck className="w-3.5 h-3.5 text-blue-500" />
-                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-bold text-[var(--on-surface)] truncate">{displayName}</p>
+                      {otherProfile?.status === "approved" && (
+                        <ShieldCheck className="w-3.5 h-3.5 text-blue-500" />
+                      )}
+                    </div>
+                    <p className="text-[10px] text-[var(--on-surface-variant)] font-medium">
+                      {otherProfile?.location || "India"}
+                      {otherProfile?.occupation ? ` · ${otherProfile.occupation}` : ""}
+                    </p>
+                    {otherProfile && (
+                      <CallPermissionBadge callerId={user.uid} receiverId={otherProfile.uid} />
+                    )}
+                  </div>
+                </Link>
+              ) : (
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="relative w-10 h-10 rounded-full gold-gradient flex items-center justify-center text-white font-serif font-bold flex-shrink-0 shadow-ambient">
+                    {initial}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-[var(--on-surface)] truncate">{displayName}</p>
+                  </div>
                 </div>
-                <p className="text-[10px] text-[var(--on-surface-variant)] font-medium">
-                  {otherProfile?.location || "India"}
-                  {otherProfile?.occupation ? ` · ${otherProfile.occupation}` : ""}
-                </p>
-              </div>
+              )}
 
 
               <div className="flex items-center gap-2">
@@ -236,13 +286,13 @@ export default function ChatSessionPage() {
                 )}
                 <div className="flex items-center gap-1">
                   <button 
-                    onClick={() => setActiveCall({ type: "voice" })}
+                    onClick={() => handleCallAttempt("voice")}
                     className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center hover:bg-blue-100 transition-colors"
                   >
                     <Phone className="w-4 h-4 text-blue-700" />
                   </button>
                   <button 
-                    onClick={() => setActiveCall({ type: "video" })}
+                    onClick={() => handleCallAttempt("video")}
                     className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center hover:bg-purple-100 transition-colors"
                   >
                     <Video className="w-4 h-4 text-purple-700" />

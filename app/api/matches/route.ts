@@ -2,18 +2,25 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebase-admin";
 import { calculateCompatibility } from "@/lib/matching";
 import { UserProfile } from "@/lib/firestore";
+import { requireAuth } from "@/lib/api-auth";
 
 
 export async function GET(request: NextRequest) {
   try {
+    const callerUid = await requireAuth(request);
+    if (!callerUid) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
-    const uid = searchParams.get("uid");
+    const uid = searchParams.get("uid") || callerUid;
+
+    if (uid !== callerUid) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const cursor = searchParams.get("cursor");
     const pageSize = Math.min(parseInt(searchParams.get("pageSize") || "20"), 50);
-
-    if (!uid) {
-      return NextResponse.json({ error: "uid required" }, { status: 400 });
-    }
 
     const adminDb = getAdminDb();
     const seekerDoc = await adminDb.collection("users").doc(uid).get();
@@ -39,7 +46,25 @@ export async function GET(request: NextRequest) {
     }
 
     const snap = await q.get();
-    let profiles = snap.docs.map((d) => ({ uid: d.id, ...d.data() } as UserProfile)).filter((p) => p.uid !== uid);
+
+    // 1. Get users blocked by current seeker
+    const blocksSnap = await adminDb.collection("blocks").doc(uid).collection("blockedUsers").get();
+    const blockedUids = new Set(blocksSnap.docs.map(d => d.id));
+
+    let profiles = snap.docs
+      .map((d) => ({ uid: d.id, ...d.data() } as UserProfile))
+      .filter((p) => p.uid !== uid && !blockedUids.has(p.uid) && !p.isPrivate);
+
+    // 2. Filter out users who have blocked the seeker
+    const blockChecks = await Promise.all(
+      profiles.map(async (p) => {
+        const docRef = adminDb.collection("blocks").doc(p.uid).collection("blockedUsers").doc(uid);
+        const docSnap = await docRef.get();
+        return { uid: p.uid, blocked: docSnap.exists };
+      })
+    );
+    const usersWhoBlockedSeeker = new Set(blockChecks.filter(c => c.blocked).map(c => c.uid));
+    profiles = profiles.filter(p => !usersWhoBlockedSeeker.has(p.uid));
 
     const hasMore = profiles.length > pageSize;
     if (hasMore) profiles = profiles.slice(0, pageSize);

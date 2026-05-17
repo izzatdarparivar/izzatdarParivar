@@ -2,15 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebase-admin";
 import { calculateCompatibility } from "@/lib/matching";
 import { UserProfile } from "@/lib/firestore";
+import { requireAuth } from "@/lib/api-auth";
 
 
 export async function GET(request: NextRequest) {
   try {
+    const callerUid = await requireAuth(request);
+    if (!callerUid) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
-    const uid = searchParams.get("uid");
+    const uid = searchParams.get("uid") || callerUid;
     const count = Math.min(parseInt(searchParams.get("count") || "10"), 20);
 
-    if (!uid) return NextResponse.json({ error: "uid required" }, { status: 400 });
+    if (uid !== callerUid) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const adminDb = getAdminDb();
     const seekerDoc = await adminDb.collection("users").doc(uid).get();
@@ -39,6 +47,7 @@ export async function GET(request: NextRequest) {
       if (candidate.uid === uid) continue;
       if (seenIds.has(candidate.uid)) continue;
       if (blockedIds.has(candidate.uid)) continue;
+      if (candidate.isPrivate) continue;
       
       try {
         const { score, breakdown } = calculateCompatibility(seeker, candidate);

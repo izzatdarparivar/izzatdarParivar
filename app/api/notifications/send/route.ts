@@ -38,7 +38,14 @@ export async function POST(req: NextRequest) {
     if (prefs?.quietHoursStart && prefs?.quietHoursEnd) {
       const now = new Date();
       const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-      if (currentTime >= prefs.quietHoursStart || currentTime <= prefs.quietHoursEnd) {
+      const { quietHoursStart, quietHoursEnd } = prefs;
+      let inQuietHours = false;
+      if (quietHoursStart <= quietHoursEnd) {
+        inQuietHours = currentTime >= quietHoursStart && currentTime <= quietHoursEnd;
+      } else {
+        inQuietHours = currentTime >= quietHoursStart || currentTime <= quietHoursEnd;
+      }
+      if (inQuietHours) {
         return NextResponse.json({ sent: false, reason: "quiet_hours" });
       }
     }

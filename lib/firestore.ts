@@ -9,6 +9,7 @@ import {
   getDocs,
   serverTimestamp,
   Timestamp,
+  limit,
 } from "firebase/firestore";
 import { db } from "./firebase";
 
@@ -63,21 +64,30 @@ export interface UserProfile {
   // Interests & hobbies
   hobbies?: string[];      // Array of hobby tags
   gotra?: string;          // Family lineage tag
+
+  // Privacy settings
+  isPrivate?: boolean;
+  hideContactInfo?: boolean;
+  hidePhotos?: boolean;
 }
 
 
-/** Create or overwrite a user document */
 export async function createUserProfile(
   uid: string,
   data: Partial<UserProfile>
 ): Promise<void> {
+  const existingDoc = await getDoc(doc(db, "users", uid));
+  const existingStatus = existingDoc.exists() ? existingDoc.data().status : "pending";
+  const existingPremium = existingDoc.exists() ? existingDoc.data().is_premium : false;
+  const existingCreatedAt = existingDoc.exists() ? existingDoc.data().createdAt : serverTimestamp();
+
   await setDoc(
     doc(db, "users", uid),
     {
       ...data,
-      status: "pending",
-      is_premium: false,
-      createdAt: serverTimestamp(),
+      status: existingStatus,
+      is_premium: existingPremium,
+      createdAt: existingCreatedAt,
       updatedAt: serverTimestamp(),
     },
     { merge: true }
@@ -107,10 +117,11 @@ export async function updateUserProfile(
 
 
 /** Fetch all approved profiles for the matchmaking feed */
-export async function getApprovedProfiles(): Promise<UserProfile[]> {
+export async function getApprovedProfiles(limitCount = 50): Promise<UserProfile[]> {
   const q = query(
     collection(db, "users"),
-    where("status", "==", "approved")
+    where("status", "==", "approved"),
+    limit(limitCount)
   );
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ uid: d.id, ...d.data() } as UserProfile));

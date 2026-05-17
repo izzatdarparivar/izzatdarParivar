@@ -11,9 +11,10 @@ import {
   onCallStatusChange,
   sendSignal,
   onSignal,
+  cleanupCallSignals,
   CallSession,
 } from "@/lib/video-call";
-import { Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Phone, X, Volume2, VolumeX } from "lucide-react";
+import { Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Phone, X, Volume2, VolumeX, Minimize2, Maximize2 } from "lucide-react";
 
 
 interface VideoCallProps {
@@ -34,28 +35,161 @@ export default function VideoCall({ callId: existingCallId, receiverId, receiver
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
   const [isVideoOff, setIsVideoOff] = useState(type === "voice");
   const [error, setError] = useState<string | null>(null);
+  const [isMinimized, setIsMinimized] = useState(false);
 
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
+  const remoteStreamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  // CALL-02 fix: track callId synchronously via ref to avoid stale closure
+  const activeCallIdRef = useRef<string>("");
+  // CALL-03 fix: store incoming offer before peer connection exists
+  const pendingOfferRef = useRef<RTCSessionDescriptionInit | null>(null);
+
+  // Audio synthesizer for call sounds (ringback/incoming ringtone)
+  const ringAudioContextRef = useRef<AudioContext | null>(null);
+  const ringIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const startRingSound = useCallback((isIncoming: boolean) => {
+    stopRingSound();
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+      
+      const ctx = new AudioContextClass();
+      ringAudioContextRef.current = ctx;
+
+      if (isIncoming) {
+        // beautiful melodious chime ringtone for incoming calls
+        let toggle = true;
+        const playTone = () => {
+          if (ctx.state === "suspended") ctx.resume();
+          const now = ctx.currentTime;
+          
+          const freqs = toggle ? [523.25, 659.25, 783.99] : [587.33, 698.46, 880.00];
+          toggle = !toggle;
+
+          freqs.forEach((f, idx) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(f, now);
+            
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(0.15, now + 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.6 + idx * 0.1);
+            
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            
+            osc.start(now);
+            osc.stop(now + 0.8 + idx * 0.1);
+          });
+        };
+
+        playTone();
+        ringIntervalRef.current = setInterval(playTone, 1000);
+      } else {
+        // standard dual-frequency ringback tone (dual sine 400Hz + 450Hz, 2s on, 4s off)
+        const playRingback = () => {
+          if (ctx.state === "suspended") ctx.resume();
+          const now = ctx.currentTime;
+
+          const frequencies = [400, 450];
+          frequencies.map(f => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(f, now);
+
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(0.08, now + 0.05);
+            gain.gain.setValueAtTime(0.08, now + 1.8);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + 2.0);
+
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+
+            osc.start(now);
+            osc.stop(now + 2.0);
+            return osc;
+          });
+        };
+
+        playRingback();
+        ringIntervalRef.current = setInterval(playRingback, 4000);
+      }
+    } catch (err) {
+      console.warn("Web Audio API failed to initialize ringtone:", err);
+    }
+  }, []);
+
+  const stopRingSound = useCallback(() => {
+    if (ringIntervalRef.current) {
+      clearInterval(ringIntervalRef.current);
+      ringIntervalRef.current = null;
+    }
+    if (ringAudioContextRef.current) {
+      try {
+        ringAudioContextRef.current.close();
+      } catch {}
+      ringAudioContextRef.current = null;
+    }
+  }, []);
+
+  // Handle call sounds based on status
+  useEffect(() => {
+    if (status === "ringing") {
+      startRingSound(!!existingCallId);
+    } else {
+      stopRingSound();
+    }
+    return () => stopRingSound();
+  }, [status, existingCallId, startRingSound, stopRingSound]);
+
+  // Re-bind media streams when minimized state toggles
+  useEffect(() => {
+    if (localVideoRef.current && localStreamRef.current) {
+      localVideoRef.current.srcObject = localStreamRef.current;
+    }
+    if (remoteVideoRef.current && remoteStreamRef.current) {
+      remoteVideoRef.current.srcObject = remoteStreamRef.current;
+    }
+  }, [isMinimized, status]);
 
 
-  // Setup WebRTC
-  const setupPeerConnection = useCallback(() => {
+  // CALL-01 + CALL-02 fix: accept resolvedCallId as param so ICE candidates
+  // use the correct path even before React state update propagates.
+  const setupPeerConnection = useCallback((resolvedCallId: string) => {
     const pc = new RTCPeerConnection({
       iceServers: [
+        // STUN — for simple NAT traversal
         { urls: "stun:stun.l.google.com:19302" },
         { urls: "stun:stun1.l.google.com:19302" },
+        // TURN — required for CGNAT / symmetric NAT (Indian mobile networks, corporate Wi-Fi)
+        {
+          urls: process.env.NEXT_PUBLIC_TURN_URL || "turn:openrelay.metered.ca:80",
+          username: process.env.NEXT_PUBLIC_TURN_USERNAME || "openrelayproject",
+          credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL || "openrelayproject",
+        },
+        {
+          urls: (process.env.NEXT_PUBLIC_TURN_URL || "turn:openrelay.metered.ca:443").replace("turn:", "turns:"),
+          username: process.env.NEXT_PUBLIC_TURN_USERNAME || "openrelayproject",
+          credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL || "openrelayproject",
+        },
       ],
+      iceCandidatePoolSize: 10,
     });
 
-
+    // CALL-02 fix: use resolvedCallId parameter, not the stale callId state
     pc.onicecandidate = (event) => {
-      if (event.candidate && callId && user) {
-        sendSignal(callId, {
+      if (event.candidate && resolvedCallId && user) {
+        sendSignal(resolvedCallId, {
           type: "ice-candidate",
           from: user.uid,
           to: receiverId,
@@ -64,40 +198,38 @@ export default function VideoCall({ callId: existingCallId, receiverId, receiver
       }
     };
 
-
     pc.ontrack = (event) => {
+      remoteStreamRef.current = event.streams[0];
       if (remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = event.streams[0];
       }
     };
 
-
     peerConnectionRef.current = pc;
     return pc;
-  }, [callId, receiverId, user]);
+  }, [receiverId, user]); // no longer depends on callId state
 
 
-  // Start call (Caller Side)
+  // Start call (Caller Side) — CALL-02 fix: use resolved id, not state
   useEffect(() => {
     if (!user || existingCallId) return;
 
-
     async function startCall() {
       try {
-        // 1. Create the signaling document in Firestore
+        // 1. Create signaling doc first to get the id
         const id = await initiateCall(user!.uid, user!.displayName || "User", receiverId, receiverName, type);
         setCallId(id);
-        
-        // 2. Setup Peer Connection
-        const pc = setupPeerConnection();
-        
-        // 3. Get Media Stream
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-          video: type === "video", 
-          audio: true 
+        activeCallIdRef.current = id; // sync update — available immediately
+
+        // 2. Setup PC with the resolved id (not from React state)
+        const pc = setupPeerConnection(id);
+
+        // 3. Get media stream
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: type === "video",
+          audio: true,
         });
 
-        // Abort if the call was ended or component unmounted while waiting for camera
         if (pc.signalingState === "closed") {
           stream.getTracks().forEach(t => t.stop());
           return;
@@ -105,26 +237,22 @@ export default function VideoCall({ callId: existingCallId, receiverId, receiver
 
         localStreamRef.current = stream;
         if (localVideoRef.current) localVideoRef.current.srcObject = stream;
-        
-        // 4. Add tracks to PC
         stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
-        // 5. Create Offer
+        // 4. Create and send offer
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
-
-        // 6. Send Offer Signal
-        await sendSignal(id, { 
-          type: "offer", 
-          from: user!.uid, 
-          to: receiverId, 
-          data: { type: offer.type, sdp: offer.sdp } 
+        await sendSignal(id, {
+          type: "offer",
+          from: user!.uid,
+          to: receiverId,
+          data: { type: offer.type, sdp: offer.sdp },
         });
 
       } catch (err: any) {
         console.error("Failed to start call:", err);
         if (err.message?.includes("permission") || err.code === "permission-denied") {
-          setError("Database Access Error: Missing or insufficient permissions. (Check Firestore Rules)");
+          setError("Database Access Error: Missing or insufficient permissions.");
         } else {
           setError("Could not access Camera/Mic. Please check your browser permissions.");
         }
@@ -153,32 +281,36 @@ export default function VideoCall({ callId: existingCallId, receiverId, receiver
   }, [callId, onEnd]);
 
 
-  // Listen to signals (Receiver/Answerer Side logic mostly)
+  // CALL-03 fix: store incoming offer in ref, process it when PC is ready
   useEffect(() => {
     if (!callId || !user) return;
     try {
       const unsubscribe = onSignal(callId, user.uid, async (signal) => {
-        const pc = peerConnectionRef.current;
-        if (!pc) return;
-
-        try {
-          if (signal.type === "offer") {
-            // Receiver handles the offer
+        if (signal.type === "offer") {
+          // Store offer — peer connection may not be ready yet (receiver case)
+          pendingOfferRef.current = signal.data;
+          const pc = peerConnectionRef.current;
+          if (pc && !pc.remoteDescription) {
             await pc.setRemoteDescription(new RTCSessionDescription(signal.data));
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
-            await sendSignal(callId, { type: "answer", from: user.uid, to: signal.from, data: { type: answer.type, sdp: answer.sdp } });
-          } else if (signal.type === "answer") {
-            // Caller handles the answer
-            if (!pc.currentRemoteDescription) {
-              await pc.setRemoteDescription(new RTCSessionDescription(signal.data));
-            }
-          } else if (signal.type === "ice-candidate") {
-            // Both handle ICE candidates
-            await pc.addIceCandidate(new RTCIceCandidate(signal.data));
+            await sendSignal(callId, {
+              type: "answer",
+              from: user.uid,
+              to: signal.from,
+              data: { type: answer.type, sdp: answer.sdp },
+            });
           }
-        } catch (e) {
-          console.error("Signaling processing error:", e);
+        } else if (signal.type === "answer") {
+          const pc = peerConnectionRef.current;
+          if (pc && !pc.currentRemoteDescription) {
+            await pc.setRemoteDescription(new RTCSessionDescription(signal.data));
+          }
+        } else if (signal.type === "ice-candidate") {
+          const pc = peerConnectionRef.current;
+          if (pc && pc.remoteDescription) {
+            await pc.addIceCandidate(new RTCIceCandidate(signal.data)).catch(console.error);
+          }
         }
       });
       return unsubscribe;
@@ -197,18 +329,25 @@ export default function VideoCall({ callId: existingCallId, receiverId, receiver
   }, [status]);
 
 
-  function cleanup() {
+  // CALL-04 fix: cleanup also purges the signals subcollection
+  async function cleanup() {
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
     peerConnectionRef.current?.close();
     if (timerRef.current) clearInterval(timerRef.current);
+    const idToClean = activeCallIdRef.current || callId;
+    if (idToClean) {
+      try { await cleanupCallSignals(idToClean); } catch {}
+    }
   }
 
 
+  // CALL-03 fix: handleAnswer processes the stored pending offer
   async function handleAnswer() {
     if (!callId) return;
     try {
       await answerCall(callId);
-      const pc = setupPeerConnection();
+      activeCallIdRef.current = callId;
+      const pc = setupPeerConnection(callId); // pass callId directly
       const stream = await navigator.mediaDevices.getUserMedia({ video: type === "video", audio: true });
       if (pc.signalingState === "closed") {
         stream.getTracks().forEach(t => t.stop());
@@ -217,6 +356,20 @@ export default function VideoCall({ callId: existingCallId, receiverId, receiver
       localStreamRef.current = stream;
       stream.getTracks().forEach((track) => pc.addTrack(track, stream));
       if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+
+      // Process the offer that arrived before PC was ready
+      if (pendingOfferRef.current) {
+        await pc.setRemoteDescription(new RTCSessionDescription(pendingOfferRef.current));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        await sendSignal(callId, {
+          type: "answer",
+          from: user!.uid,
+          to: receiverId,
+          data: { type: answer.type, sdp: answer.sdp },
+        });
+        pendingOfferRef.current = null;
+      }
     } catch (err) {
       console.error("Answer error:", err);
       setError("Could not answer call.");
@@ -231,7 +384,7 @@ export default function VideoCall({ callId: existingCallId, receiverId, receiver
     } catch (err) {
       console.error("End call error:", err);
     } finally {
-      cleanup();
+      await cleanup();
       onEnd();
     }
   }
@@ -268,7 +421,92 @@ export default function VideoCall({ callId: existingCallId, receiverId, receiver
   }
 
 
+  // CALL-05 fix: actually call setSinkId to route audio to speaker/earpiece
+  async function toggleSpeaker() {
+    const videoEl = remoteVideoRef.current;
+    if (!videoEl) return;
+    if (typeof (videoEl as any).setSinkId !== "function") {
+      // setSinkId not supported (Firefox, Safari) — just toggle state for UI
+      setIsSpeakerOn(!isSpeakerOn);
+      return;
+    }
+    try {
+      if (isSpeakerOn) {
+        await (videoEl as any).setSinkId("");
+      } else {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const speaker = devices.find(d => d.kind === "audiooutput");
+        if (speaker) await (videoEl as any).setSinkId(speaker.deviceId);
+      }
+      setIsSpeakerOn(!isSpeakerOn);
+    } catch (err) {
+      console.error("setSinkId failed:", err);
+    }
+  }
+
+
   const formatDuration = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+
+
+  if (isMinimized) {
+    return (
+      <div className="fixed bottom-6 right-6 w-80 bg-[#1E293B] border border-white/10 rounded-3xl shadow-2xl z-[150] overflow-hidden animate-in fade-in slide-in-from-bottom-5 duration-300">
+        <div className="relative aspect-video w-full bg-black">
+          {/* Remote video stream */}
+          <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
+          
+          {/* If voice or remote stream not active/ringing */}
+          {(status === "ringing" || type === "voice" || !remoteStreamRef.current) && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-[#1E293B] to-[#0F172A] p-3 text-center">
+              <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center text-lg font-serif font-bold text-orange-800 shadow-md ring-2 ring-orange-500/20 mb-2">
+                {receiverName[0]}
+              </div>
+              <p className="text-xs font-bold text-white truncate max-w-[150px]">{receiverName}</p>
+              <p className="text-[10px] text-orange-400 font-medium animate-pulse">
+                {status === "ringing" ? "Calling..." : "On Call"}
+              </p>
+            </div>
+          )}
+
+          {/* Local PIP for video calls */}
+          {type === "video" && status === "active" && (
+            <div className="absolute top-2 right-2 w-20 aspect-video bg-black/40 rounded-lg overflow-hidden border border-white/10 z-10">
+              <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+            </div>
+          )}
+          
+          {/* Overlay info */}
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent p-3 text-white flex items-end justify-between z-20">
+            <div>
+              <p className="font-bold text-xs truncate max-w-[120px]">{receiverName}</p>
+              {status === "active" && (
+                <span className="text-[10px] font-mono text-gray-300 bg-black/40 px-1.5 py-0.5 rounded">
+                  {formatDuration(duration)}
+                </span>
+              )}
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsMinimized(false)}
+                className="w-8 h-8 bg-white/15 hover:bg-white/25 rounded-xl flex items-center justify-center text-white backdrop-blur-sm transition-all"
+                title="Expand to Fullscreen"
+              >
+                <Maximize2 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleEnd}
+                className="w-8 h-8 bg-red-500 hover:bg-red-600 rounded-xl flex items-center justify-center text-white transition-all shadow-md"
+                title="End Call"
+              >
+                <PhoneOff className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
 
   return (
@@ -300,7 +538,7 @@ export default function VideoCall({ callId: existingCallId, receiverId, receiver
 
         {/* Local video (picture-in-picture) */}
         {type === "video" && (
-          <div className="absolute top-6 right-6 w-32 sm:w-48 aspect-video bg-black/40 rounded-2xl overflow-hidden shadow-lg border border-white/10 backdrop-blur-sm z-10">
+          <div className="absolute top-6 right-20 w-32 sm:w-48 aspect-video bg-black/40 rounded-2xl overflow-hidden shadow-lg border border-white/10 backdrop-blur-sm z-10">
             <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
           </div>
         )}
@@ -314,6 +552,17 @@ export default function VideoCall({ callId: existingCallId, receiverId, receiver
               {formatDuration(duration)}
             </div>
           )}
+        </div>
+
+        {/* Minimize Button */}
+        <div className="absolute top-6 right-6 flex items-center gap-3 z-10">
+          <button 
+            onClick={() => setIsMinimized(true)}
+            className="bg-black/40 hover:bg-black/60 backdrop-blur-md text-white p-2.5 rounded-2xl border border-white/10 shadow-lg transition-all"
+            title="Minimize Call"
+          >
+            <Minimize2 className="w-5 h-5" />
+          </button>
         </div>
 
 
@@ -344,8 +593,9 @@ export default function VideoCall({ callId: existingCallId, receiverId, receiver
                 {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
               </button>
               
+              {/* CALL-05: now calls toggleSpeaker which actually routes audio */}
               <button 
-                onClick={() => setIsSpeakerOn(!isSpeakerOn)}
+                onClick={toggleSpeaker}
                 className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 ${!isSpeakerOn ? "bg-red-500 text-white" : "bg-white/10 text-white hover:bg-white/20"}`}
                 title={isSpeakerOn ? "Speaker On" : "Speaker Off"}
               >
@@ -381,4 +631,3 @@ export default function VideoCall({ callId: existingCallId, receiverId, receiver
     </div>
   );
 }
-

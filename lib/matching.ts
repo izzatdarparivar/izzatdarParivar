@@ -50,6 +50,16 @@ const EDUCATION_LEVELS: Record<string, number> = {
 
 
 const INCOME_BRACKETS: Record<string, number> = {
+  "below ₹2l": 1,
+  "₹2l–5l": 2,
+  "₹2l-5l": 2,
+  "₹5l–10l": 3,
+  "₹5l-10l": 3,
+  "₹10l–20l": 4,
+  "₹10l-20l": 4,
+  "₹20l–50l": 5,
+  "₹20l-50l": 5,
+  "₹50l+": 6,
   "0-3 lpa": 1,
   "3-5 lpa": 2,
   "5-10 lpa": 3,

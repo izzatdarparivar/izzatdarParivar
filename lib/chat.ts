@@ -98,6 +98,17 @@ export async function sendMessage(sessionId: string, senderId: string, text: str
   if (!session) return false;
 
 
+  const recipientId = session.participants.find((p) => p !== senderId) || "";
+
+  // Check if recipient has blocked the sender (wrapped in try-catch to be immune to client-side rule restrictions)
+  try {
+    const blockRef = doc(db, "blocks", recipientId, "blockedUsers", senderId);
+    const blockSnap = await getDoc(blockRef);
+    if (blockSnap.exists()) return false; // Silently fail
+  } catch (err) {
+    console.warn("Blocked check skipped due to client permission restrictions:", err);
+  }
+
   const isInitiator = senderId === session.initiatorId;
 
 

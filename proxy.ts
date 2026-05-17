@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 
-// In-memory rate limit store (resets on cold start)
+// In-memory rate limit store (resets on cold start — see DEV-02 for Redis upgrade)
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
 
 
@@ -57,17 +57,6 @@ function checkRateLimit(
 }
 
 
-function parseJwtPayload(token: string): Record<string, any> | null {
-  try {
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
-    return JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
-  } catch {
-    return null;
-  }
-}
-
-
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const response = NextResponse.next();
@@ -96,7 +85,7 @@ export async function proxy(req: NextRequest) {
     }
   }
 
-  // Handle admin path specifically
+  // Handle admin path — cryptographically verify the JWT via Firebase Admin
   if (req.nextUrl.pathname.startsWith("/admin") || req.nextUrl.pathname.startsWith("/dashboard/admin")) {
     if (req.nextUrl.pathname.startsWith("/dashboard/admin")) {
       return NextResponse.redirect(new URL("/admin", req.url));
@@ -110,9 +99,27 @@ export async function proxy(req: NextRequest) {
       return NextResponse.redirect(new URL("/auth/login?redirect=/admin", req.url));
     }
 
-    const payload = parseJwtPayload(token);
-    if (!payload || (payload.role !== "admin" && payload.role !== "moderator")) {
-      return NextResponse.redirect(new URL("/auth/login?error=unauthorized", req.url));
+    // SEC-02: Verify JWT cryptographically via Firebase Admin SDK
+    // Note: firebase-admin cannot run in Edge Runtime, so we call a
+    // lightweight server-side verification endpoint instead.
+    try {
+      const verifyUrl = new URL("/api/auth/verify-admin", req.url);
+      const verifyRes = await fetch(verifyUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+
+      if (!verifyRes.ok) {
+        return NextResponse.redirect(new URL("/auth/login?error=unauthorized", req.url));
+      }
+
+      const { role } = await verifyRes.json();
+      if (role !== "admin" && role !== "moderator") {
+        return NextResponse.redirect(new URL("/auth/login?error=unauthorized", req.url));
+      }
+    } catch {
+      return NextResponse.redirect(new URL("/auth/login?error=invalid_token", req.url));
     }
   }
 

@@ -268,7 +268,16 @@ export default function MatchesPage() {
         const res = await fetch(`/api/recommendations?${params.toString()}`);
         if (!res.ok) throw new Error(`Server error ${res.status}`);
         const data: MatchesResponse = await res.json();
-        setForYouItems((prev) => (append ? [...prev, ...data.matches] : data.matches));
+        
+        const mappedMatches = data.matches.map((m) => ({
+          ...m,
+          profile: {
+            ...m.profile,
+            displayName: (m.profile as any).name || m.profile.displayName || "User",
+          },
+        }));
+
+        setForYouItems((prev) => (append ? [...prev, ...mappedMatches] : mappedMatches));
         setForYouCursor(data.nextCursor);
         setForYouHasMore(data.hasMore);
         setForYouStatus("done");
@@ -293,7 +302,16 @@ export default function MatchesPage() {
         const res = await fetch(`/api/matches?${params.toString()}`);
         if (!res.ok) throw new Error(`Server error ${res.status}`);
         const data: MatchesResponse = await res.json();
-        setBrowseItems((prev) => (append ? [...prev, ...data.matches] : data.matches));
+        
+        const mappedMatches = data.matches.map((m) => ({
+          ...m,
+          profile: {
+            ...m.profile,
+            displayName: (m.profile as any).name || m.profile.displayName || "User",
+          },
+        }));
+
+        setBrowseItems((prev) => (append ? [...prev, ...mappedMatches] : mappedMatches));
         setBrowseCursor(data.nextCursor);
         setBrowseHasMore(data.hasMore);
         setBrowseStatus("done");

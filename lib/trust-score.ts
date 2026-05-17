@@ -48,7 +48,7 @@ export async function calculateTrustScore(userId: string): Promise<TrustScore> {
 
 
   // Profile completion (0-20)
-  const requiredFields = ["displayName", "age", "gender", "education", "occupation", "location", "religion", "bio", "photoURL", "phone"];
+  const requiredFields = ["name", "dob", "gender", "education", "occupation", "location", "religion", "bio", "photoURL", "phone"];
   const filledFields = requiredFields.filter((f) => userData[f]);
   const profileCompletion = Math.round((filledFields.length / requiredFields.length) * 20);
 

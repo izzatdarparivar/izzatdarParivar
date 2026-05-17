@@ -1,19 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebase-admin";
+import { requireAuth } from "@/lib/api-auth";
 
 
 export async function POST(request: NextRequest) {
   try {
+    const callerUid = await requireAuth(request);
+    if (!callerUid) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
-    const { blockerId, blockedId, action } = body as {
-      blockerId: string;
+    const { blockedId, action } = body as {
       blockedId: string;
       action?: "block" | "unblock";
     };
+    const blockerId = callerUid; // Always use verified UID
 
-    if (!blockerId || !blockedId) {
+    if (!blockedId) {
       return NextResponse.json(
-        { error: "blockerId and blockedId are required" },
+        { error: "blockedId is required" },
         { status: 400 }
       );
     }
@@ -43,11 +49,16 @@ export async function POST(request: NextRequest) {
 
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const uid = searchParams.get("uid");
+  const callerUid = await requireAuth(request);
+  if (!callerUid) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-  if (!uid) {
-    return NextResponse.json({ error: "uid required" }, { status: 400 });
+  const { searchParams } = new URL(request.url);
+  const uid = searchParams.get("uid") || callerUid;
+
+  if (uid !== callerUid) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   try {
