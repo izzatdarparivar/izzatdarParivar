@@ -166,7 +166,19 @@ export default function CreateProfilePage() {
           prefReligion: p.preferences?.religion || "",
           prefLocation: p.preferences?.location || "",
           dob: p.dob
-            ? new Date((p.dob as Timestamp).toDate()).toISOString().split("T")[0]
+            ? (() => {
+                try {
+                  const dateObj = (p.dob as any).toDate
+                    ? (p.dob as any).toDate()
+                    : (p.dob as any).seconds
+                    ? new Date((p.dob as any).seconds * 1000)
+                    : new Date(p.dob as any);
+                  return dateObj.toISOString().split("T")[0];
+                } catch (e) {
+                  console.error("Error parsing DOB:", e);
+                  return "";
+                }
+              })()
             : "",
         }));
         if (p.hobbies) setSelectedHobbies(p.hobbies);
