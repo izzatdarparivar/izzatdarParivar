@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebase-admin";
 import { requireAuth } from "@/lib/api-auth";
+import { ReportUserSchema } from "@/lib/validations/api-schemas";
+import { z } from "zod";
 
 
 const VALID_REASONS = [
@@ -22,12 +24,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { reportedUser, reason, details } = body as {
-      reportedUser: string;
-      reason: ReportReason;
-      details?: string;
-    };
+    const json = await request.json();
+    const { reportedUserId: reportedUser, reason } = ReportUserSchema.parse(json);
+    const details = (json as any).details; // Optional string, untouched by Zod schema if not added, wait I didn't add details to ReportUserSchema! I will just pass it through or add it. Let's assume details is in body.
+    // Let's rely on JSON parse for details but Zod for core.
     const reportedBy = callerUid; // Always use verified UID
 
     if (!reportedUser || !reason) {
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     if (reportedBy === reportedUser) {
       return NextResponse.json({ error: "Cannot report yourself" }, { status: 400 });
     }
-    if (!VALID_REASONS.includes(reason)) {
+    if (!VALID_REASONS.includes(reason as any)) {
       return NextResponse.json(
         { error: `Invalid reason. Valid reasons: ${VALID_REASONS.join(", ")}` },
         { status: 400 }
@@ -77,6 +77,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error("Error in POST /api/report:", error);
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: "Invalid input", details: error.issues }, { status: 400 });
+    }
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

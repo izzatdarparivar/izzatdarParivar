@@ -37,7 +37,7 @@ Keep it under 3 sentences, optimistic, and natural. Do not use hashtags.`;
   } catch (error: any) {
     console.error("Bio generation error:", error);
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Invalid input", details: error.errors }, { status: 400 });
+      return NextResponse.json({ error: "Invalid input", details: error.issues }, { status: 400 });
     }
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }

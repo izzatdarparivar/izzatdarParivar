@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebase-admin";
 import { requireAuth } from "@/lib/api-auth";
+import { BlockUserSchema } from "@/lib/validations/api-schemas";
+import { z } from "zod";
 
 
 export async function POST(request: NextRequest) {
@@ -10,11 +12,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { blockedId, action } = body as {
-      blockedId: string;
-      action?: "block" | "unblock";
-    };
+    const json = await request.json();
+    const { blockedId, action } = BlockUserSchema.parse(json);
     const blockerId = callerUid; // Always use verified UID
 
     if (!blockedId) {
@@ -43,6 +42,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, action: "blocked" });
   } catch (error: any) {
     console.error("Error in POST /api/block:", error);
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: "Invalid input", details: error.issues }, { status: 400 });
+    }
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

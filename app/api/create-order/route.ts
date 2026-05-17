@@ -33,7 +33,7 @@ export async function POST(req: Request) {
   } catch (err: any) {
     console.error("Razorpay order creation error:", err);
     if (err instanceof z.ZodError) {
-      return NextResponse.json({ error: "Invalid input", details: err.errors }, { status: 400 });
+      return NextResponse.json({ error: "Invalid input", details: err.issues }, { status: 400 });
     }
     return NextResponse.json(
       { error: "Failed to create order", details: err.message },

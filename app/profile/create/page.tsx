@@ -10,8 +10,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createUserProfile, getUserProfile } from "@/lib/firestore";
 import { toast } from "sonner";
-import { User, Heart, Briefcase, Camera, Users, Sparkles, X, Plus } from "lucide-react";
+import { User, Heart, Briefcase, Camera, Users, Sparkles, X, Plus, Trash2 } from "lucide-react";
 import { uploadImageAction } from "@/app/actions/cloudinary";
+import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { Timestamp } from "firebase/firestore";
 import { sanitizeBio, sanitizeProfileData } from "@/lib/sanitize";
@@ -44,7 +45,7 @@ interface FormData {
   prefMaxAge: string;
   prefReligion: string;
   prefLocation: string;
-  photoURL: string;
+  photos: string[];
   whatsapp: string;
 }
 
@@ -127,7 +128,7 @@ export default function CreateProfilePage() {
     motherTongue: "", education: "", occupation: "", annualIncome: "", bio: "",
     phone: "", countryCode: "+91", familyType: "", diet: "", lifestyle: "", aboutFamily: "",
     gotra: "",
-    prefMinAge: "22", prefMaxAge: "35", prefReligion: "", prefLocation: "", photoURL: "",
+    prefMinAge: "22", prefMaxAge: "35", prefReligion: "", prefLocation: "", photos: [],
     whatsapp: "",
   });
 
@@ -158,7 +159,7 @@ export default function CreateProfilePage() {
           familyType: p.familyType || "",
           diet: p.diet || "",
           lifestyle: p.lifestyle || "",
-          photoURL: p.photoURL || "",
+          photos: p.photos || (p.photoURL ? [p.photoURL] : []),
           aboutFamily: p.aboutFamily || "",
           gotra: p.gotra || "",
           prefMinAge: String(p.preferences?.minAge || 22),
@@ -222,7 +223,7 @@ export default function CreateProfilePage() {
         phone: `${form.countryCode} ${form.phone.replace(/\s/g, "")}`,
         whatsapp: form.whatsapp ? `${form.countryCode} ${form.whatsapp.replace(/\s/g, "")}` : "",
         email: user.email || "",
-        photoURL: form.photoURL || user.photoURL || "",
+        photos: form.photos,
         familyType: form.familyType,
         diet: form.diet,
         lifestyle: form.lifestyle,
@@ -262,24 +263,64 @@ export default function CreateProfilePage() {
         <div className="bg-gradient-to-r from-[var(--primary-container)]/60 to-[var(--secondary-container)]/30 rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-ambient border border-white/50">
           <div className="absolute top-0 right-0 w-48 h-48 bg-[var(--primary-fixed)]/30 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none" />
          
-          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 relative z-10">
-            <div
-              className="relative group cursor-pointer"
-              onClick={() => document.getElementById('photo-upload')?.click()}
-            >
-              <div className="relative w-24 h-24 sm:w-28 sm:h-28 gold-gradient rounded-full flex items-center justify-center text-white text-3xl font-serif font-bold shadow-lg border-4 border-white/80 overflow-hidden">
-                {form.photoURL ? (
-                  <Image src={form.photoURL} alt="Profile" fill sizes="150px" className="object-cover" />
-                ) : (
-                  form.firstName?.[0]?.toUpperCase() || "?"
-                )}
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 relative z-10 w-full">
+            <div className="flex-1 w-full">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h1 className="font-serif text-3xl font-bold text-[var(--on-surface)]">
+                    Your Photos
+                  </h1>
+                  <p className="text-[var(--on-surface-variant)] mt-1 text-sm sm:text-base">
+                    Add up to 6 pictures. ({form.photos.length}/6)
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={form.photos.length >= 6}
+                  className="rounded-full text-xs border-[var(--outline-variant)]/50 bg-white/50 backdrop-blur-sm"
+                  onClick={() => document.getElementById('photo-upload')?.click()}
+                >
+                  <Plus className="w-4 h-4 mr-1" /> Add Photo
+                </Button>
               </div>
-              <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <Camera className="w-8 h-8 text-white" />
+
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+                <AnimatePresence>
+                  {form.photos.map((photo, index) => (
+                    <motion.div
+                      key={photo}
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      transition={{ duration: 0.2 }}
+                      className="relative aspect-square rounded-xl overflow-hidden shadow-sm group border border-white/50"
+                    >
+                      <Image src={photo} alt={`Profile ${index + 1}`} fill sizes="100px" className="object-cover" />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <button
+                          type="button"
+                          onClick={() => set("photos", form.photos.filter(p => p !== photo) as any)}
+                          className="bg-red-500 text-white p-1.5 rounded-full hover:bg-red-600 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))}
+                  
+                  {form.photos.length < 6 && (
+                    <motion.div
+                      layout
+                      onClick={() => document.getElementById('photo-upload')?.click()}
+                      className="relative aspect-square rounded-xl overflow-hidden shadow-inner bg-[var(--surface-container-lowest)] border-2 border-dashed border-[var(--outline-variant)]/40 hover:border-[var(--primary)]/50 hover:bg-[var(--primary-container)]/10 cursor-pointer flex items-center justify-center transition-all group"
+                    >
+                      <Camera className="w-6 h-6 text-[var(--on-surface-variant)]/50 group-hover:text-[var(--primary)] transition-colors" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-              <div className="absolute bottom-0 right-0 bg-white p-2 rounded-full shadow-md border border-[var(--outline-variant)]/50">
-                <Camera className="w-4 h-4 text-[var(--primary)]" />
-              </div>
+
               <input
                 id="photo-upload"
                 type="file"
@@ -288,62 +329,57 @@ export default function CreateProfilePage() {
                 onChange={async (e) => {
                   const file = e.target.files?.[0];
                   if (!file) return;
+                  if (form.photos.length >= 6) {
+                    toast.error("Maximum 6 photos allowed");
+                    return;
+                  }
                  
                   const toastId = toast.loading("Compressing and uploading photo...");
                   
                   try {
-                    // Compress and resize the image client-side to be mobile-friendly and fit Vercel payload limits (< 4.5MB)
                     const base64 = await compressAndResizeImage(file);
                     
-                    // 1. Try Cloudinary
+                    // 1. Try Cloudinary via secure signature
+                    const sigRes = await fetch("/api/upload", { method: "POST" });
+                    const sigData = await sigRes.json();
+                    
+                    if (sigRes.ok && sigData.signature) {
+                      const uploadFormData = new FormData();
+                      uploadFormData.append("file", base64);
+                      uploadFormData.append("api_key", process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY || "");
+                      uploadFormData.append("timestamp", sigData.timestamp);
+                      uploadFormData.append("signature", sigData.signature);
+                      uploadFormData.append("folder", `profiles/${user?.uid}`);
+                      
+                      const cldRes = await fetch(`https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`, {
+                        method: "POST",
+                        body: uploadFormData
+                      });
+                      const cldData = await cldRes.json();
+                      
+                      if (cldRes.ok && cldData.secure_url) {
+                        setForm(prev => ({ ...prev, photos: [...prev.photos, cldData.secure_url] }));
+                        toast.success("Photo uploaded successfully!", { id: toastId });
+                        return;
+                      }
+                    }
+                    
+                    console.warn("Cloudinary direct upload failed. Falling back to Server Action.");
+
                     const res = await uploadImageAction(base64);
                     if (res.success && res.url) {
-                      set("photoURL", res.url);
+                      setForm(prev => ({ ...prev, photos: [...prev.photos, res.url!] }));
                       toast.success("Photo uploaded successfully!", { id: toastId });
                       return;
                     }
                     
-                    // Log warning that Cloudinary failed or isn't configured
-                    console.warn("Cloudinary upload failed or keys missing. Falling back to Firebase Storage.");
-
-                    // 2. Fallback to Firebase Storage
-                    if (user) {
-                      const { ref, uploadString, getDownloadURL } = await import("firebase/storage");
-                      const { storage } = await import("@/lib/firebase");
-                      
-                      const storageRef = ref(storage, `profiles/${user.uid}/profile_${Date.now()}.jpg`);
-                      await uploadString(storageRef, base64, 'data_url');
-                      const url = await getDownloadURL(storageRef);
-                      
-                      set("photoURL", url);
-                      toast.success("Photo uploaded successfully via Firebase!", { id: toastId });
-                    } else {
-                      throw new Error("No logged in user found for upload fallback.");
-                    }
+                    throw new Error("Upload failed in both pipelines");
                   } catch (err: any) {
-                    console.error("Upload failed in both pipelines:", err);
+                    console.error("Upload failed:", err);
                     toast.error("Photo upload failed. Please try again.", { id: toastId });
                   }
                 }}
               />
-            </div>
-
-
-            <div className="text-center sm:text-left flex-1">
-              <h1 className="font-serif text-3xl font-bold text-[var(--on-surface)]">
-                Your Profile
-              </h1>
-              <p className="text-[var(--on-surface-variant)] mt-1 mb-4 text-sm sm:text-base">
-                A complete profile gets 5x more matches. Let&apos;s make yours stand out!
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-full text-xs border-[var(--outline-variant)]/50 bg-white/50 backdrop-blur-sm"
-                onClick={() => document.getElementById('photo-upload')?.click()}
-              >
-                {form.photoURL ? "Change Photo" : "Upload Real Photo"}
-              </Button>
             </div>
           </div>
         </div>
