@@ -19,6 +19,7 @@ import {
   Clock,
   ArrowRight,
   User,
+  Phone,
 } from "lucide-react";
 import Link from "next/link";
 import PremiumModal from "@/components/PremiumModal";
@@ -252,10 +253,11 @@ export default function DashboardPage() {
               <h3 className="font-serif text-lg font-semibold text-[var(--on-surface)] mb-4">
                 Quick Actions
               </h3>
-              <div className="grid sm:grid-cols-2 gap-3">
+              <div className="grid sm:grid-cols-3 gap-3">
                 {[
-                  { href: "/matches", label: "Browse All Matches", desc: "Explore approved profiles", icon: Users },
+                  { href: "/matches", label: "Browse Matches", desc: "Explore approved profiles", icon: Users },
                   { href: "/profile/create", label: "Update Profile", desc: "Keep your info fresh", icon: User },
+                  { href: "/dashboard/calls", label: "Call History", desc: "View video & voice logs", icon: Phone },
                 ].map((action) => (
                   <Link
                     key={action.href}
@@ -283,6 +285,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-
-
