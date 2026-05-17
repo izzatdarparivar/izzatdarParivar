@@ -24,7 +24,8 @@ import {
   Share2,
   Download,
   EyeOff,
-  PhoneOff
+  PhoneOff,
+  Star
 } from "lucide-react";
 import Image from "next/image";
 import InterestButton from "@/components/InterestButton";
@@ -38,7 +39,8 @@ export default function ProfileViewPage() {
   const { user, userProfile } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [interestStatus, setInterestStatus] = useState<"none" | "sent" | "mutual">("none");
+  const [interestStatus, setInterestStatus] = useState<"none" | "sent" | "mutual" | "incoming">("none");
+  const [isShortlistedState, setIsShortlistedState] = useState(false);
 
 
 
@@ -49,15 +51,23 @@ export default function ProfileViewPage() {
       setProfile(data);
       
       if (user && data) {
+        // Load Interest Status
         const { getInterestBetween } = await import("@/lib/interests");
         const existing = await getInterestBetween(user.uid, data.uid);
         if (existing) {
           setInterestStatus(existing.status === "accepted" ? "mutual" : "sent");
         } else {
-          // Check reverse for mutual
+          // Check reverse for incoming or mutual
           const reverse = await getInterestBetween(data.uid, user.uid);
-          if (reverse && reverse.status === "accepted") setInterestStatus("mutual");
+          if (reverse) {
+            setInterestStatus(reverse.status === "accepted" ? "mutual" : "incoming");
+          }
         }
+
+        // Load Shortlist Status
+        const { isShortlisted } = await import("@/lib/shortlist");
+        const shorted = await isShortlisted(user.uid, data.uid);
+        setIsShortlistedState(shorted);
       }
       
       setLoading(false);
@@ -211,6 +221,40 @@ export default function ProfileViewPage() {
               >
                 <MessageCircle className="w-5 h-5 mr-2" />
                 Message
+              </Button>
+
+
+              {/* Shortlist Toggle Button */}
+              <Button
+                variant="outline"
+                className={`w-14 h-14 rounded-2xl border-2 transition-all ${
+                  isShortlistedState 
+                    ? "border-[#f97316] bg-orange-50 text-[#f97316] hover:bg-orange-100" 
+                    : "border-gray-200 text-gray-500 hover:bg-gray-50"
+                }`}
+                onClick={async () => {
+                  if (!user) {
+                    toast.error("Please login to shortlist profiles");
+                    return;
+                  }
+                  const { addToShortlist, removeFromShortlist } = await import("@/lib/shortlist");
+                  try {
+                    if (isShortlistedState) {
+                      await removeFromShortlist(user.uid, profile.uid);
+                      setIsShortlistedState(false);
+                      toast.success("Removed from shortlist");
+                    } else {
+                      await addToShortlist(user.uid, profile.uid);
+                      setIsShortlistedState(true);
+                      toast.success("Added to shortlist!");
+                    }
+                  } catch (err) {
+                    toast.error("Could not update shortlist status");
+                  }
+                }}
+                title={isShortlistedState ? "Remove from Shortlist" : "Add to Shortlist"}
+              >
+                <Star className={`w-6 h-6 ${isShortlistedState ? "fill-[#f97316] text-[#f97316]" : ""}`} />
               </Button>
 
 

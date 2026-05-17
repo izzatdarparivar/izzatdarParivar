@@ -10,7 +10,7 @@ import { useAuth } from "@/context/AuthContext";
 
 interface InterestButtonProps {
   toUserId: string;
-  initialStatus?: "none" | "sent" | "mutual";
+  initialStatus?: "none" | "sent" | "mutual" | "incoming";
   onMutualMatch?: () => void;
 }
 
@@ -22,11 +22,11 @@ export default function InterestButton({
   onMutualMatch,
 }: InterestButtonProps) {
   const { user } = useAuth();
-  const [status, setStatus] = useState<"none" | "sent" | "mutual" | "loading">(initialStatus);
+  const [status, setStatus] = useState<"none" | "sent" | "mutual" | "incoming" | "loading">(initialStatus);
 
   async function handleSendInterest() {
     if (!user) return toast.error("Please login to send interest");
-    if (status !== "none") return;
+    if (status !== "none" && status !== "incoming") return;
     setStatus("loading");
 
     try {
@@ -83,6 +83,18 @@ export default function InterestButton({
       >
         <HeartOff className="w-4 h-4" />
         Interest Sent
+      </button>
+    );
+  }
+
+  if (status === "incoming") {
+    return (
+      <button
+        onClick={handleSendInterest}
+        className="flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-sm font-semibold hover:scale-105 active:scale-95 transition-all shadow-md animate-pulse"
+      >
+        <Heart className="w-4 h-4 fill-white animate-bounce" />
+        Accept Interest
       </button>
     );
   }
