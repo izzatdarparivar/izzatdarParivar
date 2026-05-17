@@ -171,29 +171,38 @@ export default function VideoCall({ callId: existingCallId, receiverId, receiver
     // Clear any previously queued ICE candidates for this new connection
     pendingIceCandidatesRef.current = [];
 
-    const iceServers: RTCIceServer[] = [
-      // STUN — for simple NAT traversal (multiple for redundancy)
-      { urls: "stun:stun.l.google.com:19302" },
-      { urls: "stun:stun1.l.google.com:19302" },
-      { urls: "stun:stun2.l.google.com:19302" },
-      { urls: "stun:stun3.l.google.com:19302" },
-    ];
+    const turnUser = process.env.NEXT_PUBLIC_TURN_USERNAME || "";
+    const turnCred = process.env.NEXT_PUBLIC_TURN_CREDENTIAL || "";
 
-    // TURN — required for CGNAT / symmetric NAT (Indian mobile networks, corporate Wi-Fi)
-    if (process.env.NEXT_PUBLIC_TURN_URL) {
-      iceServers.push(
-        {
-          urls: process.env.NEXT_PUBLIC_TURN_URL,
-          username: process.env.NEXT_PUBLIC_TURN_USERNAME || "",
-          credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL || "",
-        },
-        {
-          urls: process.env.NEXT_PUBLIC_TURN_URL.replace("turn:", "turns:"),
-          username: process.env.NEXT_PUBLIC_TURN_USERNAME || "",
-          credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL || "",
-        }
-      );
-    }
+    const iceServers: RTCIceServer[] = [
+      // STUN — Metered.ca + Google fallbacks
+      { urls: "stun:stun.relay.metered.ca:80" },
+      { urls: "stun:stun.l.google.com:19302" },
+      // TURN — Metered.ca global relay (UDP on port 80)
+      {
+        urls: "turn:global.relay.metered.ca:80",
+        username: turnUser,
+        credential: turnCred,
+      },
+      // TURN — TCP on port 80 (for restrictive firewalls)
+      {
+        urls: "turn:global.relay.metered.ca:80?transport=tcp",
+        username: turnUser,
+        credential: turnCred,
+      },
+      // TURN — UDP on port 443 (bypasses most corporate firewalls)
+      {
+        urls: "turn:global.relay.metered.ca:443",
+        username: turnUser,
+        credential: turnCred,
+      },
+      // TURNS — TLS on port 443 (maximum firewall compatibility)
+      {
+        urls: "turns:global.relay.metered.ca:443?transport=tcp",
+        username: turnUser,
+        credential: turnCred,
+      },
+    ];
 
     const pc = new RTCPeerConnection({ iceServers, iceCandidatePoolSize: 10 });
 
