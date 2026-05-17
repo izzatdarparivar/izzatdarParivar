@@ -73,10 +73,11 @@ function avatarUrl(name: string, size = 400): string {
 
 interface ProfileCardProps {
   item: MatchProfile;
+  priority?: boolean;
 }
 
 
-function ProfileCard({ item }: ProfileCardProps) {
+function ProfileCard({ item, priority = false }: ProfileCardProps) {
   const { profile, score, breakdown } = item;
   const [reportTarget, setReportTarget] = useState<{ uid: string; name: string } | null>(null);
   const locationLabel = [profile.location?.city, profile.location?.state].filter(Boolean).join(", ");
@@ -93,6 +94,7 @@ function ProfileCard({ item }: ProfileCardProps) {
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
             className="object-cover"
+            priority={priority}
             onError={(e) => {
               (e.currentTarget as HTMLImageElement).src = avatarUrl(profile.displayName);
             }}
@@ -542,8 +544,8 @@ function TabContent({ status, error, items, hasMore, onLoadMore, onRetry }: TabC
     <div className="flex flex-col gap-8">
       {/* Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-        {items.map((item) => (
-          <ProfileCard key={item.profile.uid} item={item} />
+        {items.map((item, index) => (
+          <ProfileCard key={item.profile.uid} item={item} priority={index < 4} />
         ))}
         {/* Append skeletons at bottom while loading more */}
         {isLoadingMore &&

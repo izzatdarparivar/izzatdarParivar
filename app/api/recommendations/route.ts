@@ -20,16 +20,18 @@ export async function GET(request: NextRequest) {
 
     const targetGender = seeker.gender === "male" ? "female" : seeker.gender === "female" ? "male" : undefined;
 
-    const interactionsSnap = await adminDb.collection("user_interactions").where("userId", "==", uid).get();
-    const seenIds = new Set(interactionsSnap.docs.map((d) => d.data().targetProfileId));
-
-    const blockedSnap = await adminDb.collection("blocked_users").doc(uid).collection("blocked").get();
-    const blockedIds = new Set(blockedSnap.docs.map((d) => d.id));
-
     let candidatesQuery = adminDb.collection("users").where("status", "==", "approved");
     if (targetGender) candidatesQuery = candidatesQuery.where("gender", "==", targetGender);
 
-    const candidatesSnap = await candidatesQuery.limit(200).get();
+    // Optimize: Fetch all independent Firestore queries in parallel using Promise.all
+    const [interactionsSnap, blockedSnap, candidatesSnap] = await Promise.all([
+      adminDb.collection("user_interactions").where("userId", "==", uid).get(),
+      adminDb.collection("blocked_users").doc(uid).collection("blocked").get(),
+      candidatesQuery.limit(200).get()
+    ]);
+
+    const seenIds = new Set(interactionsSnap.docs.map((d) => d.data().targetProfileId));
+    const blockedIds = new Set(blockedSnap.docs.map((d) => d.id));
 
     const scored: { profile: UserProfile; score: number; breakdown: any }[] = [];
     for (const candidateDoc of candidatesSnap.docs) {
