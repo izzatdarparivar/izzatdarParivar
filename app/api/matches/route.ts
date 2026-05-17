@@ -55,15 +55,13 @@ export async function GET(request: NextRequest) {
       .map((d) => ({ uid: d.id, ...d.data() } as UserProfile))
       .filter((p) => p.uid !== uid && !blockedUids.has(p.uid) && !p.isPrivate);
 
-    // 2. Filter out users who have blocked the seeker
-    const blockChecks = await Promise.all(
-      profiles.map(async (p) => {
-        const docRef = adminDb.collection("blocks").doc(p.uid).collection("blockedUsers").doc(uid);
-        const docSnap = await docRef.get();
-        return { uid: p.uid, blocked: docSnap.exists };
-      })
+    // 2. Filter out users who have blocked the seeker (O(1) query instead of N queries)
+    const blockChecks = await adminDb.collectionGroup("blockedUsers").where("blockedUserId", "==", uid).get();
+    const usersWhoBlockedSeeker = new Set(
+      blockChecks.docs
+        .map(doc => doc.ref.parent.parent?.id)
+        .filter(Boolean)
     );
-    const usersWhoBlockedSeeker = new Set(blockChecks.filter(c => c.blocked).map(c => c.uid));
     profiles = profiles.filter(p => !usersWhoBlockedSeeker.has(p.uid));
 
     const hasMore = profiles.length > pageSize;
