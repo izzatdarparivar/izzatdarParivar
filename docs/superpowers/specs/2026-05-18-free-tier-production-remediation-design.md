@@ -7,7 +7,7 @@ Remediate all P0/P1 security and performance vulnerabilities identified in the f
 Instead of expensive Kubernetes clusters, we will leverage Vercel and Firebase free tiers by splitting the monolith into logical serverless boundaries:
 *   **Edge Microservices (Vercel Edge Functions):** Handles Auth Middleware, Rate Limiting (Upstash Redis), and JWT Verification. This runs instantly and costs almost nothing.
 *   **Data Microservices (Vercel Serverless Functions):** Handles standard CRUD. 
-*   **AI/Match Microservices:** Handles heavy compatibility scoring and LLM requests (Gemini Free Tier).
+*   **AI/Match Microservices:** Handles heavy compatibility scoring and LLM requests (Primary: Gemini Free Tier, Fallback: Groq Free Tier).
 *   **Database (Firebase Spark):** To stay under 50k reads/day, we will denormalize the `blocks` collection to eliminate the N+1 query issue (which currently costs 51 reads per match request).
 *   **Caching (Upstash Redis Free):** Cache AI recommendations and Match results (10,000 free requests/day) to shield Firestore.
 *   **Storage (Cloudinary Free):** Upload images directly from client to Cloudinary (bypassing the Vercel base64 memory crash).
@@ -28,7 +28,7 @@ Instead of expensive Kubernetes clusters, we will leverage Vercel and Firebase f
 *   **Error Boundaries:** Add `error.tsx` and `global-error.tsx` to prevent full-app crashes.
 
 ## 4. AI Features Integration
-We will integrate a Free Tier LLM (Google Gemini API) to implement the missing AI features:
+We will integrate a Free Tier LLM (Primary: Google Gemini API via Google AI Studio, Fallback: Groq API) to implement the missing AI features. If Gemini hits a rate limit, the service will seamlessly fallback to Groq:
 1.  **AI Bio Writer:** A button in `/profile/create` that takes user's basic traits and generates a culturally appropriate, engaging bio.
 2.  **AI Icebreakers:** On match cards, a "Generate Icebreaker" button that reads both profiles and suggests 3 conversation starters.
 3.  **AI Photo Enhancement Suggestions:** When a user uploads a photo, simple AI vision check to suggest lighting or framing improvements.
