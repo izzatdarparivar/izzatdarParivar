@@ -14,3 +14,4 @@ yarn-error.log*
 .pnp.*
 *.csv
 test_accounts.*
+.worktrees/
