@@ -153,7 +153,7 @@ export default function Navbar() {
                   <DropdownMenuTrigger asChild>
                     <button className="rounded-full ring-2 ring-[var(--primary-container)] hover:ring-[var(--primary)] transition-all ml-2">
                       <Avatar className="w-9 h-9">
-                        <AvatarImage src={user.photoURL || ""} alt={user.displayName || "User"} />
+                        <AvatarImage src={userProfile?.photoURL || user.photoURL || ""} alt={userProfile?.name || user.displayName || "User"} />
                         <AvatarFallback className="bg-[var(--primary-container)] text-[var(--on-primary-container)] text-sm font-semibold">
                           {user.displayName?.[0]?.toUpperCase() || "U"}
                         </AvatarFallback>

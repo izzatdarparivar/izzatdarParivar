@@ -99,7 +99,7 @@ export default function DashboardPage() {
               <div className="flex flex-col items-center text-center">
                 <div className="relative mb-4">
                   <Avatar className="w-24 h-24 ring-4 ring-[var(--primary-container)]">
-                    <AvatarImage src={user.photoURL || ""} alt={user.displayName || "User"} />
+                    <AvatarImage src={userProfile?.photoURL || user.photoURL || ""} alt={userProfile?.name || user.displayName || "User"} />
                     <AvatarFallback className="bg-[var(--primary-container)] text-[var(--on-primary-container)] text-3xl font-serif">
                       {user.displayName?.[0]?.toUpperCase() || "U"}
                     </AvatarFallback>
