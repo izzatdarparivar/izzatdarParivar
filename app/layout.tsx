@@ -3,6 +3,7 @@ import { Montserrat } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/context/AuthContext";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 
 const montserrat = Montserrat({
@@ -38,6 +39,7 @@ export default function RootLayout({
         <AuthProvider>
           {children}
           <Toaster richColors position="top-right" />
+          <SpeedInsights />
         </AuthProvider>
       </body>
     </html>
