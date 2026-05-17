@@ -44,17 +44,18 @@ NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET="your_project.firebasestorage.app"
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID="your_sender_id"
 NEXT_PUBLIC_FIREBASE_APP_ID="your_app_id"
 NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID="your_measurement_id"
+NEXT_PUBLIC_FIREBASE_VAPID_KEY="your_vapid_key"
 
 
 # ----- FIREBASE ADMIN SDK (SERVER SIDE ONLY) -----
-FIREBASE_PROJECT_ID="your_project_id"
-FIREBASE_CLIENT_EMAIL="firebase-adminsdk@your_project.iam.gserviceaccount.com"
-FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYour_Key\n-----END PRIVATE KEY-----\n"
+FIREBASE_ADMIN_PROJECT_ID="your_project_id"
+FIREBASE_ADMIN_CLIENT_EMAIL="firebase-adminsdk@your_project.iam.gserviceaccount.com"
+FIREBASE_ADMIN_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYour_Key\n-----END PRIVATE KEY-----\n"
 
 
 # ----- RAZORPAY API KEYS -----
-RAZORPAY_API_KEY="rzp_test_your_key"
-RAZORPAY_SECRET_KEY="your_test_secret"
+RAZORPAY_KEY_ID="rzp_test_your_key"
+RAZORPAY_KEY_SECRET="your_test_secret"
 RAZORPAY_WEBHOOK_SECRET="your_custom_webhook_secret_string"
 ```
 > **Warning:** NEVER commit your `.env.local` file to public version control. It is ignored by `.gitignore` automatically.
