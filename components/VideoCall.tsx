@@ -48,6 +48,8 @@ export default function VideoCall({ callId: existingCallId, receiverId, receiver
   const activeCallIdRef = useRef<string>("");
   // CALL-03 fix: store incoming offer before peer connection exists
   const pendingOfferRef = useRef<RTCSessionDescriptionInit | null>(null);
+  // CALL-06 fix: queue ICE candidates that arrive before remoteDescription is set
+  const pendingIceCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
 
   // Audio synthesizer for call sounds (ringback/incoming ringtone)
   const ringAudioContextRef = useRef<AudioContext | null>(null);
@@ -166,25 +168,34 @@ export default function VideoCall({ callId: existingCallId, receiverId, receiver
   // CALL-01 + CALL-02 fix: accept resolvedCallId as param so ICE candidates
   // use the correct path even before React state update propagates.
   const setupPeerConnection = useCallback((resolvedCallId: string) => {
-    const pc = new RTCPeerConnection({
-      iceServers: [
-        // STUN — for simple NAT traversal
-        { urls: "stun:stun.l.google.com:19302" },
-        { urls: "stun:stun1.l.google.com:19302" },
-        // TURN — required for CGNAT / symmetric NAT (Indian mobile networks, corporate Wi-Fi)
+    // Clear any previously queued ICE candidates for this new connection
+    pendingIceCandidatesRef.current = [];
+
+    const iceServers: RTCIceServer[] = [
+      // STUN — for simple NAT traversal (multiple for redundancy)
+      { urls: "stun:stun.l.google.com:19302" },
+      { urls: "stun:stun1.l.google.com:19302" },
+      { urls: "stun:stun2.l.google.com:19302" },
+      { urls: "stun:stun3.l.google.com:19302" },
+    ];
+
+    // TURN — required for CGNAT / symmetric NAT (Indian mobile networks, corporate Wi-Fi)
+    if (process.env.NEXT_PUBLIC_TURN_URL) {
+      iceServers.push(
         {
-          urls: process.env.NEXT_PUBLIC_TURN_URL || "turn:openrelay.metered.ca:80",
-          username: process.env.NEXT_PUBLIC_TURN_USERNAME || "openrelayproject",
-          credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL || "openrelayproject",
+          urls: process.env.NEXT_PUBLIC_TURN_URL,
+          username: process.env.NEXT_PUBLIC_TURN_USERNAME || "",
+          credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL || "",
         },
         {
-          urls: (process.env.NEXT_PUBLIC_TURN_URL || "turn:openrelay.metered.ca:443").replace("turn:", "turns:"),
-          username: process.env.NEXT_PUBLIC_TURN_USERNAME || "openrelayproject",
-          credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL || "openrelayproject",
-        },
-      ],
-      iceCandidatePoolSize: 10,
-    });
+          urls: process.env.NEXT_PUBLIC_TURN_URL.replace("turn:", "turns:"),
+          username: process.env.NEXT_PUBLIC_TURN_USERNAME || "",
+          credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL || "",
+        }
+      );
+    }
+
+    const pc = new RTCPeerConnection({ iceServers, iceCandidatePoolSize: 10 });
 
     // CALL-02 fix: use resolvedCallId parameter, not the stale callId state
     pc.onicecandidate = (event) => {
@@ -194,20 +205,48 @@ export default function VideoCall({ callId: existingCallId, receiverId, receiver
           from: user.uid,
           to: receiverId,
           data: event.candidate.toJSON(),
-        }).catch(err => console.error("Signal error:", err));
+        }).catch(err => console.error("ICE signal error:", err));
       }
     };
 
     pc.ontrack = (event) => {
+      console.log("[WebRTC] Remote track received:", event.track.kind);
       remoteStreamRef.current = event.streams[0];
       if (remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = event.streams[0];
       }
     };
 
+    // CALL-07: Monitor ICE connection state for errors & user feedback
+    pc.oniceconnectionstatechange = () => {
+      console.log("[WebRTC] ICE state:", pc.iceConnectionState);
+      switch (pc.iceConnectionState) {
+        case "connected":
+        case "completed":
+          setError(null);
+          break;
+        case "disconnected":
+          setError("Connection interrupted. Reconnecting...");
+          break;
+        case "failed":
+          setError("Connection failed. Please check your network.");
+          // Attempt ICE restart
+          if (pc.signalingState !== "closed") {
+            pc.restartIce();
+          }
+          break;
+        case "closed":
+          break;
+      }
+    };
+
+    pc.onconnectionstatechange = () => {
+      console.log("[WebRTC] Connection state:", pc.connectionState);
+    };
+
     peerConnectionRef.current = pc;
     return pc;
-  }, [receiverId, user]); // no longer depends on callId state
+  }, [receiverId, user]);
 
 
   // Start call (Caller Side) — CALL-02 fix: use resolved id, not state
@@ -281,17 +320,33 @@ export default function VideoCall({ callId: existingCallId, receiverId, receiver
   }, [callId, onEnd]);
 
 
-  // CALL-03 fix: store incoming offer in ref, process it when PC is ready
+  // CALL-06 fix: helper to flush queued ICE candidates after remoteDescription is set
+  const flushPendingIceCandidates = useCallback(async (pc: RTCPeerConnection) => {
+    const candidates = pendingIceCandidatesRef.current;
+    pendingIceCandidatesRef.current = [];
+    console.log(`[WebRTC] Flushing ${candidates.length} queued ICE candidates`);
+    for (const candidate of candidates) {
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (err) {
+        console.warn("[WebRTC] Failed to add queued ICE candidate:", err);
+      }
+    }
+  }, []);
+
+  // CALL-03 + CALL-06 fix: signal handler with proper ICE candidate queuing
   useEffect(() => {
     if (!callId || !user) return;
     try {
       const unsubscribe = onSignal(callId, user.uid, async (signal) => {
+        const pc = peerConnectionRef.current;
         if (signal.type === "offer") {
           // Store offer — peer connection may not be ready yet (receiver case)
           pendingOfferRef.current = signal.data;
-          const pc = peerConnectionRef.current;
           if (pc && !pc.remoteDescription) {
             await pc.setRemoteDescription(new RTCSessionDescription(signal.data));
+            // Flush any ICE candidates that arrived before the offer
+            await flushPendingIceCandidates(pc);
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
             await sendSignal(callId, {
@@ -302,14 +357,21 @@ export default function VideoCall({ callId: existingCallId, receiverId, receiver
             });
           }
         } else if (signal.type === "answer") {
-          const pc = peerConnectionRef.current;
           if (pc && !pc.currentRemoteDescription) {
             await pc.setRemoteDescription(new RTCSessionDescription(signal.data));
+            // Flush any ICE candidates that arrived before the answer
+            await flushPendingIceCandidates(pc);
           }
         } else if (signal.type === "ice-candidate") {
-          const pc = peerConnectionRef.current;
           if (pc && pc.remoteDescription) {
-            await pc.addIceCandidate(new RTCIceCandidate(signal.data)).catch(console.error);
+            // Remote description is set — add candidate immediately
+            await pc.addIceCandidate(new RTCIceCandidate(signal.data)).catch(err => {
+              console.warn("[WebRTC] addIceCandidate error:", err);
+            });
+          } else {
+            // CALL-06 fix: Queue the candidate — it arrived before remoteDescription
+            console.log("[WebRTC] Queuing ICE candidate (no remoteDescription yet)");
+            pendingIceCandidatesRef.current.push(signal.data);
           }
         }
       });
@@ -317,7 +379,7 @@ export default function VideoCall({ callId: existingCallId, receiverId, receiver
     } catch (err) {
       console.error("Signal listener error:", err);
     }
-  }, [callId, user]);
+  }, [callId, user, flushPendingIceCandidates]);
 
 
   // Duration timer
@@ -341,13 +403,13 @@ export default function VideoCall({ callId: existingCallId, receiverId, receiver
   }
 
 
-  // CALL-03 fix: handleAnswer processes the stored pending offer
+  // CALL-03 + CALL-06 fix: handleAnswer processes the stored pending offer & flushes ICE queue
   async function handleAnswer() {
     if (!callId) return;
     try {
       await answerCall(callId);
       activeCallIdRef.current = callId;
-      const pc = setupPeerConnection(callId); // pass callId directly
+      const pc = setupPeerConnection(callId);
       const stream = await navigator.mediaDevices.getUserMedia({ video: type === "video", audio: true });
       if (pc.signalingState === "closed") {
         stream.getTracks().forEach(t => t.stop());
@@ -360,6 +422,8 @@ export default function VideoCall({ callId: existingCallId, receiverId, receiver
       // Process the offer that arrived before PC was ready
       if (pendingOfferRef.current) {
         await pc.setRemoteDescription(new RTCSessionDescription(pendingOfferRef.current));
+        // CALL-06: Flush any ICE candidates queued while waiting for the offer
+        await flushPendingIceCandidates(pc);
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
         await sendSignal(callId, {

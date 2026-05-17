@@ -45,14 +45,33 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Permission granted — create the call document
+  // Permission granted — fetch caller profile for name
+  const callerDoc = await db.collection("users").doc(callerUid).get();
+  const callerName = callerDoc.exists ? (callerDoc.data()?.name || "Someone") : "Someone";
+  const callerPhoto = callerDoc.exists ? (callerDoc.data()?.photoURL || "") : "";
+
+  // Create the call document
   const callRef = await db.collection("calls").add({
     callerId: callerUid,
-    callerName: "Caller", // Fetch from profile if needed
+    callerName,
     receiverId,
     receiverName,
     type,
     status: "ringing",
+    createdAt: new Date(),
+  });
+
+  // Create a notification for the receiver so they see the call even if not on the chat page
+  await db.collection("notifications").add({
+    userId: receiverId,
+    type: "system",
+    title: `Incoming ${type === "video" ? "Video" : "Voice"} Call 📞`,
+    body: `${callerName} is calling you`,
+    read: false,
+    actionUrl: `/chat`,
+    fromUserId: callerUid,
+    fromUserName: callerName,
+    fromUserPhoto: callerPhoto,
     createdAt: new Date(),
   });
 

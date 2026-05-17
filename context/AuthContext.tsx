@@ -73,6 +73,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         setUserProfile(profile);
+
+        // Request notification permission & save FCM token for push delivery
+        try {
+          if (typeof window !== "undefined" && "Notification" in window && Notification.permission !== "denied") {
+            const { requestNotificationPermission, saveSubscription } = await import("@/lib/push-notifications");
+            const fcmToken = await requestNotificationPermission();
+            if (fcmToken) {
+              await saveSubscription(firebaseUser.uid, fcmToken);
+            }
+          }
+        } catch (notifErr) {
+          console.warn("Push notification setup skipped:", notifErr);
+        }
       } else {
         setUserProfile(null);
       }
