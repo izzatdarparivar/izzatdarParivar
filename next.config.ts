@@ -7,7 +7,7 @@ const ContentSecurityPolicy = `
   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
   img-src 'self' blob: data: https://res.cloudinary.com https://firebasestorage.googleapis.com https://lh3.googleusercontent.com;
   font-src 'self' https://fonts.gstatic.com;
-  connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://firestore.googleapis.com wss://*.firebaseio.com https://api.razorpay.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/ stun:stun.l.google.com:19302 stun:stun1.l.google.com:19302 turn:openrelay.metered.ca:80 turns:openrelay.metered.ca:443;
+  connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://firestore.googleapis.com wss://*.firebaseio.com https://api.razorpay.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/ stun:stun.l.google.com:19302 stun:stun.relay.metered.ca:80 turn:global.relay.metered.ca:80 turn:global.relay.metered.ca:443 turns:global.relay.metered.ca:443;
   worker-src 'self' blob:;
   frame-src 'self' https://checkout.razorpay.com https://*.firebaseapp.com https://www.google.com/recaptcha/ https://recaptcha.google.com https://challenges.cloudflare.com;
   object-src 'none';
