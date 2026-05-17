@@ -241,15 +241,37 @@ export default function CreateProfilePage() {
                   const reader = new FileReader();
                   reader.onloadend = async () => {
                     const base64 = reader.result as string;
-                    toast.loading("Uploading photo...");
-                    const res = await uploadImageAction(base64);
-                    toast.dismiss();
-                   
-                    if (res.success && res.url) {
-                      set("photoURL", res.url);
-                      toast.success("Photo uploaded successfully!");
-                    } else {
-                      toast.error("Photo upload failed.");
+                    const toastId = toast.loading("Uploading photo...");
+                    
+                    try {
+                      // 1. Try Cloudinary
+                      const res = await uploadImageAction(base64);
+                      if (res.success && res.url) {
+                        set("photoURL", res.url);
+                        toast.success("Photo uploaded successfully!", { id: toastId });
+                        return;
+                      }
+                      
+                      // Log warning that Cloudinary failed or isn't configured
+                      console.warn("Cloudinary upload failed or keys missing. Falling back to Firebase Storage.");
+
+                      // 2. Fallback to Firebase Storage
+                      if (user) {
+                        const { ref, uploadString, getDownloadURL } = await import("firebase/storage");
+                        const { storage } = await import("@/lib/firebase");
+                        
+                        const storageRef = ref(storage, `profiles/${user.uid}/profile_${Date.now()}.jpg`);
+                        await uploadString(storageRef, base64, 'data_url');
+                        const url = await getDownloadURL(storageRef);
+                        
+                        set("photoURL", url);
+                        toast.success("Photo uploaded successfully via Firebase!", { id: toastId });
+                      } else {
+                        throw new Error("No logged in user found for upload fallback.");
+                      }
+                    } catch (err: any) {
+                      console.error("Upload failed in both pipelines:", err);
+                      toast.error("Photo upload failed. Please try again.", { id: toastId });
                     }
                   };
                   reader.readAsDataURL(file);
