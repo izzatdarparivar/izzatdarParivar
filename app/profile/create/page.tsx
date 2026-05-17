@@ -222,7 +222,7 @@ export default function CreateProfilePage() {
         phone: `${form.countryCode} ${form.phone.replace(/\s/g, "")}`,
         whatsapp: form.whatsapp ? `${form.countryCode} ${form.whatsapp.replace(/\s/g, "")}` : "",
         email: user.email || "",
-        photoURL: user.photoURL || "",
+        photoURL: form.photoURL || user.photoURL || "",
         familyType: form.familyType,
         diet: form.diet,
         lifestyle: form.lifestyle,
