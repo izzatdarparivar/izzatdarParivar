@@ -28,6 +28,10 @@ export const adminAuth = admin.auth();
 export const adminDb = admin.firestore();
 export const getAdminDb = () => admin.firestore();
 
+export async function setAdminClaim(uid: string, role: "admin" | "moderator") {
+  await adminAuth.setCustomUserClaims(uid, { role });
+}
+
 export async function verifyAdmin(req: NextRequest) {
   try {
     const sessionCookie = req.cookies.get("__session")?.value;

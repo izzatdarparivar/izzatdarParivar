@@ -5,6 +5,14 @@ import { FieldValue } from "firebase-admin/firestore";
 
 export async function POST(req: Request) {
   try {
+    const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "127.0.0.1";
+    const RAZORPAY_IPS = ['52.66.75.147', '52.66.76.147', '52.66.137.147', '52.66.138.147', '52.66.139.147'];
+    
+    if (process.env.NODE_ENV === "production" && !RAZORPAY_IPS.includes(ip.split(",")[0].trim())) {
+      console.error(`Unauthorized webhook access attempt from IP: ${ip}`);
+      return NextResponse.json({ error: "Unauthorized IP" }, { status: 403 });
+    }
+
     const body = await req.text();
     const signature = req.headers.get("x-razorpay-signature");
 

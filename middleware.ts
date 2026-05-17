@@ -41,7 +41,22 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/auth/login", request.url));
   }
 
-  return NextResponse.next();
+  const response = NextResponse.next();
+
+  // Explicit CORS configuration
+  const allowedOrigins = ['https://izzatdarparivar.com', 'https://www.izzatdarparivar.com', 'http://localhost:3000'];
+  const origin = request.headers.get("origin") || "";
+  
+  if (allowedOrigins.includes(origin)) {
+    response.headers.set("Access-Control-Allow-Origin", origin);
+  } else {
+    response.headers.set("Access-Control-Allow-Origin", "https://izzatdarparivar.com");
+  }
+  
+  response.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization, x-razorpay-signature");
+
+  return response;
 }
 
 export const config = {
