@@ -3,6 +3,13 @@ import { getAdminDb } from "@/lib/firebase-admin";
 import { calculateCompatibility } from "@/lib/matching";
 import { UserProfile } from "@/lib/firestore";
 import { requireAuth } from "@/lib/api-auth";
+import { z } from "zod";
+
+const MatchesParamsSchema = z.object({
+  uid: z.string().optional(),
+  cursor: z.string().optional(),
+  pageSize: z.coerce.number().min(1).max(50).default(20),
+});
 
 
 export async function GET(request: NextRequest) {
@@ -13,14 +20,20 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const uid = searchParams.get("uid") || callerUid;
+    const parseResult = MatchesParamsSchema.safeParse(Object.fromEntries(searchParams));
+    
+    if (!parseResult.success) {
+      return NextResponse.json({ error: "Invalid search parameters", details: parseResult.error.issues }, { status: 400 });
+    }
+
+    const uid = parseResult.data.uid || callerUid;
 
     if (uid !== callerUid) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const cursor = searchParams.get("cursor");
-    const pageSize = Math.min(parseInt(searchParams.get("pageSize") || "20"), 50);
+    const cursor = parseResult.data.cursor;
+    const pageSize = parseResult.data.pageSize;
 
     const adminDb = getAdminDb();
     const seekerDoc = await adminDb.collection("users").doc(uid).get();
