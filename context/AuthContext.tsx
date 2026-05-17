@@ -50,26 +50,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    let isMounted = true;
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!isMounted) return;
       setUser(firebaseUser);
       if (firebaseUser) {
         // Set cookie for proxy/middleware auth
-        const token = await firebaseUser.getIdToken(true);
+        const token = await firebaseUser.getIdToken();
         document.cookie = `__session=${token}; path=/; max-age=3600; SameSite=Lax; Secure`;
 
         let profile = await getUserProfile(firebaseUser.uid);
+        if (!isMounted) return;
        
         // Auto-create stub profile for new Phone/Google users caught by listener
         if (!profile) {
-            await createUserProfile(firebaseUser.uid, {
+            const newProfileData = {
               uid: firebaseUser.uid,
               name: firebaseUser.displayName || firebaseUser.phoneNumber || "User",
               email: firebaseUser.email || "",
               photoURL: firebaseUser.photoURL || "",
-              status: "pending",
+              status: "pending" as const,
               is_premium: false,
-            });
-            profile = await getUserProfile(firebaseUser.uid);
+            };
+            await createUserProfile(firebaseUser.uid, newProfileData);
+            if (!isMounted) return;
+            profile = { ...newProfileData, createdAt: null, updatedAt: null } as unknown as UserProfile;
         }
 
         setUserProfile(profile);
@@ -77,11 +82,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Request notification permission & save FCM token for push delivery
         try {
           if (typeof window !== "undefined" && "Notification" in window && Notification.permission !== "denied") {
-            const { requestNotificationPermission, saveSubscription } = await import("@/lib/push-notifications");
-            const fcmToken = await requestNotificationPermission();
-            if (fcmToken) {
-              await saveSubscription(firebaseUser.uid, fcmToken);
-            }
+            import("@/lib/push-notifications").then(async ({ requestNotificationPermission, saveSubscription }) => {
+              if (!isMounted) return;
+              const fcmToken = await requestNotificationPermission();
+              if (fcmToken && isMounted) {
+                await saveSubscription(firebaseUser.uid, fcmToken);
+              }
+            }).catch(err => console.warn("Push notification import failed:", err));
           }
         } catch (notifErr) {
           console.warn("Push notification setup skipped:", notifErr);
@@ -91,7 +98,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       setLoading(false);
     });
-    return () => unsubscribe();
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
   }, []);
 
   const signUp = async (email: string, password: string, name: string) => {

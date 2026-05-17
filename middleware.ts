@@ -24,16 +24,33 @@ export async function middleware(request: NextRequest) {
   }
 
   const sessionCookie = request.cookies.get("__session")?.value;
-  
-  if (request.nextUrl.pathname.startsWith("/api/matches") || request.nextUrl.pathname.startsWith("/api/recommendations")) {
+  const path = request.nextUrl.pathname;
+
+  // Protect API routes
+  if (path.startsWith("/api/matches") || path.startsWith("/api/recommendations")) {
     if (!sessionCookie) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    // Note: Edge token verification logic will go in lib/auth-edge.ts
   }
+
+  // Protect Page routes
+  const protectedPages = ["/dashboard", "/matches", "/profile/create", "/settings", "/notifications"];
+  const isProtectedPage = protectedPages.some(p => path.startsWith(p));
+
+  if (isProtectedPage && !sessionCookie) {
+    return NextResponse.redirect(new URL("/auth/login", request.url));
+  }
+
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/api/:path*"],
+  matcher: [
+    "/api/:path*",
+    "/dashboard/:path*",
+    "/matches/:path*",
+    "/profile/create/:path*",
+    "/settings/:path*",
+    "/notifications/:path*"
+  ],
 };
