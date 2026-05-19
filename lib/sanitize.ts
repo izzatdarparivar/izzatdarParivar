@@ -37,10 +37,12 @@ export function sanitizeProfileData(data: Record<string, unknown>): Record<strin
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(data)) {
     if (typeof value === "string") {
-      result[key] = sanitizeStrict(value);
+      const isLargeTextField = ["bio", "aboutFamily", "expectations"].includes(key);
+      const maxLength = isLargeTextField ? 2000 : 255;
+      result[key] = sanitizeStrict(value).slice(0, maxLength);
     } else if (Array.isArray(value)) {
       result[key] = value.map((item) =>
-        typeof item === "string" ? sanitizeStrict(item) : item
+        typeof item === "string" ? sanitizeStrict(item).slice(0, 255) : item
       );
     } else if (value && typeof value === "object") {
       result[key] = sanitizeProfileData(value as Record<string, unknown>);

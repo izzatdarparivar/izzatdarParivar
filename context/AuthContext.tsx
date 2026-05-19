@@ -55,9 +55,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!isMounted) return;
       setUser(firebaseUser);
       if (firebaseUser) {
-        // Set cookie for proxy/middleware auth
+        // Set cookie securely via API route
         const token = await firebaseUser.getIdToken();
-        document.cookie = `__session=${token}; path=/; max-age=3600; SameSite=Lax; Secure`;
+        await fetch("/api/auth/session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token }),
+        }).catch(console.error);
 
         let profile = await getUserProfile(firebaseUser.uid);
         if (!isMounted) return;
@@ -148,7 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logOut = async () => {
     await signOut(auth);
-    document.cookie = "__session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    await fetch("/api/auth/session", { method: "DELETE" }).catch(console.error);
     setUserProfile(null);
   };
 
